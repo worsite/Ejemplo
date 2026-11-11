@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Burger Fest | Pide tu comida rápida</title>
+<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido y envíalo por WhatsApp en un minuto.">
+<meta name="theme-color" content="#DC2626">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&family=Lilita+One&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#menu">Saltar al menú</a>
+
+<header class="topbar">
+  <a class="brand" href="#top" aria-label="Burger Fest, inicio">
+    <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#FACC15" stroke="#450A0A" stroke-width="3"/><path d="M8 22 C8 8 32 8 32 22 Z" fill="#DC2626" stroke="#450A0A" stroke-width="3" stroke-linejoin="round"/><rect x="8" y="25" width="24" height="6" rx="3" fill="#450A0A"/></svg>
+    <span id="brandName">Burger Fest</span>
+  </a>
+  <button class="cart-btn" id="openCartTop" type="button" aria-label="Abrir mi pedido">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2l2-8H6.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19.5" r="1.6" fill="currentColor"/><circle cx="17" cy="19.5" r="1.6" fill="currentColor"/></svg>
+    <span class="cart-count" id="countTop" hidden>0</span>
+  </button>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="kicker">Pide fácil · Llega caliente</p>
+      <h1>¿Hambre?<br><span>Pídelo ya.</span></h1>
+      <p class="lead">Elige tus favoritos, arma tu pedido y envíalo por WhatsApp. Sin registros ni vueltas.</p>
+      <a class="btn btn-gold" href="#menu">Ver el menú
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <ul class="chips" aria-label="Información del local">
+        <li id="chipHours"></li>
+        <li id="chipDelivery"></li>
+      </ul>
+    </div>
+    <div class="hero-art" id="heroArt"></div>
+  </section>
+
+  <nav class="cats" id="cats" aria-label="Categorías del menú"></nav>
+
+  <div id="menu" class="menu"></div>
+</main>
+
+<footer class="footer">
+  <p><strong id="footName">Burger Fest</strong> · Catálogo de ejemplo. Las imágenes son ilustraciones genéricas.</p>
+</footer>
+
+<div class="cartbar" id="cartbar" hidden>
+  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button">
+    <span class="cartbar-n" id="barCount">0</span>
+    <span>Ver mi pedido</span>
+    <strong id="barTotal">$0</strong>
+  </button>
+</div>
+
+<dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <h2 id="sheetTitle">Mi pedido</h2>
+    <button class="icon-btn" id="closeCart" type="button" aria-label="Cerrar mi pedido">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <div class="sheet-body">
+    <div id="emptyState" class="empty" hidden>
+      <p class="empty-title">Tu pedido está vacío</p>
+      <p>Agrega algo rico del menú y vuelve aquí.</p>
+      <button class="btn btn-red" id="backToMenu" type="button">Ver el menú</button>
+    </div>
+
+    <div id="cartContent" hidden>
+      <ul class="lines" id="lines"></ul>
+      <div class="totalrow"><span>Total</span><strong id="sheetTotal">$0</strong></div>
+      <button class="link-btn" id="clearCart" type="button">Vaciar pedido</button>
+
+      <form id="orderForm" novalidate>
+        <h3>Tus datos</h3>
+
+        <div class="field">
+          <label for="name">Nombre</label>
+          <input id="name" name="name" type="text" autocomplete="name" required aria-describedby="nameErr">
+          <p class="err" id="nameErr" role="alert"></p>
+        </div>
+
+        <fieldset class="seg">
+          <legend>¿Cómo lo recibes?</legend>
+          <label><input type="radio" name="type" value="domicilio" checked><span>Domicilio</span></label>
+          <label><input type="radio" name="type" value="recoger"><span>Recoger en el local</span></label>
+        </fieldset>
+
+        <div class="field" id="addressField">
+          <label for="address">Dirección</label>
+          <input id="address" name="address" type="text" autocomplete="street-address" aria-describedby="addressErr" placeholder="Calle, número, barrio">
+          <p class="err" id="addressErr" role="alert"></p>
+        </div>
+
+        <div class="field">
+          <label for="notes">Notas <span class="opt">(opcional)</span></label>
+          <textarea id="notes" name="notes" rows="2" placeholder="Sin cebolla, extra salsa…"></textarea>
+        </div>
+
+        <button class="btn btn-wa" id="sendBtn" type="submit">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 8.5c0 3.6 2.9 6.5 6.5 6.5l1-1.6-2-1-.9.8c-1-.4-1.8-1.2-2.2-2.2l.8-.9-1-2Z" fill="currentColor"/></svg>
+          Enviar pedido por WhatsApp
+        </button>
+        <p class="hint" id="sendStatus" role="status"></p>
+      </form>
+    </div>
+  </div>
+</dialog>
+
+<div class="sr-only" id="live" aria-live="polite"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
