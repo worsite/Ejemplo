@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PRODUCTS, CATEGORIES, BUSINESS } from '../menu.js';
-import { formatCOP, addItem, setQty, lines, total, count, buildWhatsAppUrl, load, save } from '../cart.js';
+import * as cartApi from '../cart.js';
+import { formatCOP, addItem, setQty, lines, total, count, load, save } from '../cart.js';
 
 const P = [
   { id: 'a', name: 'Burger Clásica', price: 18900 },
@@ -38,33 +39,8 @@ test('total y count suman solo productos conocidos / todas las unidades', () => 
   assert.equal(count({ a: 2, b: 1 }), 3);
 });
 
-test('buildWhatsAppUrl incluye nombre especial, líneas y total', () => {
-  const cart = { a: 2, b: 1 };
-  const url = buildWhatsAppUrl({
-    business: { name: 'Burger Fest', phone: '573001112233' },
-    lines: lines(cart, P),
-    total: total(cart, P),
-    customer: { name: 'Ñandú & Co #1', type: 'domicilio', address: 'Cra 7 #12-34', notes: 'Sin cebolla\nPor favor' },
-  });
-  assert.ok(url.startsWith('https://wa.me/573001112233?text='));
-  const text = decodeURIComponent(url.split('?text=')[1]);
-  assert.match(text, /Ñandú & Co #1/);
-  assert.match(text, /2 x Burger Clásica — \$37\.800/);
-  assert.match(text, /1 x Papas Grandes — \$7\.500/);
-  assert.match(text, /Total: \$45\.300/);
-  assert.match(text, /Cra 7 #12-34/);
-  assert.match(text, /Sin cebolla\nPor favor/);
-});
-
-test('buildWhatsAppUrl para recoger no pide dirección', () => {
-  const url = buildWhatsAppUrl({
-    business: { name: 'X', phone: '57300' },
-    lines: lines({ a: 1 }, P), total: 18900,
-    customer: { name: 'Ana', type: 'recoger', address: '', notes: '' },
-  });
-  const text = decodeURIComponent(url.split('?text=')[1]);
-  assert.match(text, /Recoger en el local/);
-  assert.doesNotMatch(text, /Dirección/);
+test('el pedido ya no se envía por WhatsApp (va a Supabase)', () => {
+  assert.equal(cartApi.buildWhatsAppUrl, undefined);
 });
 
 test('load/save: JSON corrupto o storage que lanza devuelven {}', () => {
@@ -86,5 +62,7 @@ test('menú: ≥12 productos, categorías válidas, ids únicos, precios enteros
     assert.ok(cats.has(p.category), p.id);
     assert.ok(Number.isInteger(p.price) && p.price > 0, p.id);
   }
-  assert.ok(BUSINESS.phone && BUSINESS.name);
+  assert.ok(BUSINESS.name);
+  assert.ok(Number.isInteger(BUSINESS.tables) && BUSINESS.tables >= 1);
+  assert.equal(BUSINESS.phone, undefined);
 });

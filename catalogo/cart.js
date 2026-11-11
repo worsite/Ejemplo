@@ -36,21 +36,6 @@ export function count(cart) {
   return Object.values(cart).reduce((s, q) => s + q, 0);
 }
 
-export function buildWhatsAppUrl({ business, lines: ls, total: tot, customer }) {
-  const rows = [
-    `*Nuevo pedido — ${business.name}*`,
-    '',
-    ...ls.map(l => `${l.qty} x ${l.product.name} — ${formatCOP(l.subtotal)}`),
-    '',
-    `Total: ${formatCOP(tot)}`,
-    '',
-    `Nombre: ${customer.name}`,
-    customer.type === 'domicilio' ? `Entrega: Domicilio\nDirección: ${customer.address}` : 'Entrega: Recoger en el local',
-  ];
-  if (customer.notes && customer.notes.trim()) rows.push(`Notas: ${customer.notes.trim()}`);
-  return `https://wa.me/${business.phone}?text=${encodeURIComponent(rows.join('\n'))}`;
-}
-
 export function load(storage) {
   try {
     const raw = JSON.parse(storage.getItem(STORAGE_KEY));

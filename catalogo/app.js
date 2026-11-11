@@ -1,9 +1,15 @@
 import { BUSINESS, CATEGORIES, PRODUCTS } from './menu.js';
 import { artSvg, HERO_ART } from './art.js';
-import { formatCOP, addItem, setQty, clear, lines, total, count, buildWhatsAppUrl, load, save } from './cart.js';
+import { formatCOP, addItem, setQty, clear, lines, total, count, load, save } from './cart.js';
+import { createSupabase } from './supabase.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { isActive, customerMessage, progress, validateOrderForm, buildCreateOrderArgs } from './orders.js';
+import { $, esc } from './util.js';
 
-const $ = (id) => document.getElementById(id);
-const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
+const ORDER_KEY = 'burgerfest-order-v1';
+const POLL_MS = 5000;
+const ORDER_TTL_MS = 12 * 60 * 60 * 1000;
 const store = (() => { try { return window.localStorage; } catch { return { getItem() { return null; }, setItem() {} }; } })();
 
 let cart = load(store);
@@ -79,13 +85,14 @@ function renderCart() {
 
   $('countTop').hidden = n === 0;
   $('countTop').textContent = n;
-  $('cartbar').hidden = n === 0;
+  $('openCartBar').hidden = n === 0;
   $('barCount').textContent = n;
   $('barTotal').textContent = formatCOP(tot);
-  document.body.classList.toggle('has-bar', n > 0);
+  $('trackBtn').hidden = !active;
+  $('cartbar').hidden = n === 0 && !active;
+  document.body.classList.toggle('has-bar', n > 0 || !!active);
 
-  $('emptyState').hidden = n !== 0;
-  $('cartContent').hidden = n === 0;
+  applyView(n);
   $('sheetTotal').textContent = formatCOP(tot);
   $('lines').innerHTML = ls.map((l) => `
     <li class="line">
@@ -134,52 +141,134 @@ document.addEventListener('click', (e) => {
 });
 
 const sheet = $('sheet');
-const openCart = () => { render(); if (!sheet.open) sheet.showModal(); };
-$('openCartTop').addEventListener('click', openCart);
+const openCart = () => { view = 'cart'; render(); if (!sheet.open) sheet.showModal(); };
+const openTrack = () => { view = 'track'; render(); if (!sheet.open) sheet.showModal(); };
+$('openCartTop').addEventListener('click', () => (count(cart) === 0 && active ? openTrack() : openCart()));
 $('openCartBar').addEventListener('click', openCart);
+$('trackBtn').addEventListener('click', openTrack);
+$('backFromTrack').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
 $('closeCart').addEventListener('click', () => sheet.close());
 $('backToMenu').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
 sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.close(); });
 $('clearCart').addEventListener('click', () => { update(clear(), 'Pedido vaciado'); });
 
-/* Formulario */
+/* ---------- Vistas de la hoja: carrito o seguimiento ---------- */
+let view = 'cart';
+function applyView(n = count(cart)) {
+  const track = view === 'track' && !!active;
+  $('sheetTitle').textContent = track ? 'Seguimiento' : 'Mi pedido';
+  $('emptyState').hidden = track || n !== 0;
+  $('cartContent').hidden = track || n === 0;
+  $('trackView').hidden = !track;
+  if (track) renderTrack();
+}
+
+/* ---------- Formulario ---------- */
 const form = $('orderForm');
-const typeInputs = form.querySelectorAll('input[name="type"]');
+const tableSel = $('table');
+tableSel.innerHTML = '<option value="">Elige tu mesa</option>' +
+  Array.from({ length: BUSINESS.tables }, (_, i) => `<option value="${i + 1}">Mesa ${i + 1}</option>`).join('');
+
+const FIELDS = { name: 'nameErr', table: 'tableErr', address: 'addressErr', phone: 'phoneErr' };
+function setError(field, msg) {
+  $(FIELDS[field]).textContent = msg || '';
+  if (msg) $(field).setAttribute('aria-invalid', 'true'); else $(field).removeAttribute('aria-invalid');
+}
 function syncType() {
   const dom = form.type.value === 'domicilio';
+  $('tableField').hidden = dom;
   $('addressField').hidden = !dom;
-  if (!dom) { $('addressErr').textContent = ''; $('address').removeAttribute('aria-invalid'); }
+  $('phoneOpt').hidden = dom;
+  for (const f of Object.keys(FIELDS)) setError(f, '');
 }
-typeInputs.forEach((r) => r.addEventListener('change', syncType));
+form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', syncType));
+for (const f of Object.keys(FIELDS)) $(f).addEventListener('input', () => setError(f, ''));
 
-function fieldError(inputId, errId, msg) {
-  $(errId).textContent = msg;
-  if (msg) $(inputId).setAttribute('aria-invalid', 'true'); else $(inputId).removeAttribute('aria-invalid');
-}
-$('name').addEventListener('input', () => fieldError('name', 'nameErr', ''));
-$('address').addEventListener('input', () => fieldError('address', 'addressErr', ''));
-
-form.addEventListener('submit', (e) => {
+let sending = false;
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (sending) return;
   const ls = lines(cart, PRODUCTS);
   if (!ls.length) return;
   const customer = {
-    name: form.name.value.trim(),
-    type: form.type.value,
-    address: form.address.value.trim(),
-    notes: form.notes.value,
+    name: form.name.value, phone: form.phone.value, type: form.type.value,
+    table: form.table.value, address: form.address.value, notes: form.notes.value,
   };
-  fieldError('name', 'nameErr', customer.name ? '' : 'Escribe tu nombre para el pedido.');
-  fieldError('address', 'addressErr', customer.type === 'domicilio' && !customer.address ? 'Escribe la dirección de entrega.' : '');
-  const firstBad = form.querySelector('[aria-invalid="true"]');
-  if (firstBad) { firstBad.focus(); return; }
+  const errors = validateOrderForm(customer, { tables: BUSINESS.tables });
+  for (const f of Object.keys(FIELDS)) setError(f, errors[f]);
+  const firstBad = Object.keys(FIELDS).find((f) => errors[f] && !$(f).closest('[hidden]'));
+  if (firstBad) { $(firstBad).focus(); return; }
 
-  const url = buildWhatsAppUrl({ business: BUSINESS, lines: ls, total: total(cart, PRODUCTS), customer });
-  // Con 'noopener' el navegador devuelve siempre null, así que no sirve para detectar bloqueos:
-  // se confirma el envío y se deja siempre un enlace por si la ventana no se abrió.
-  window.open(url, '_blank', 'noopener');
-  $('sendStatus').innerHTML = `Abrimos WhatsApp con tu pedido; solo falta pulsar enviar allá. ¿No se abrió? <a href="${esc(url)}" target="_blank" rel="noopener">Abrir WhatsApp</a>`;
+  sending = true;
+  $('sendBtn').disabled = true;
+  $('sendBtn').textContent = 'Enviando…';
+  $('sendStatus').textContent = '';
+  try {
+    const r = await sb.rpc('create_order', buildCreateOrderArgs({ lines: ls, total: total(cart, PRODUCTS), customer }));
+    if (!r || !r.id) throw new Error('Respuesta inválida');
+    setActive({ id: r.id, code: r.code, type: customer.type, table: customer.type === 'mesa' ? Number(customer.table) : null, status: 'pendiente', at: Date.now() });
+    form.notes.value = '';
+    update(clear(), `Pedido ${r.code} enviado`);
+    openTrack();
+  } catch (err) {
+    $('sendStatus').textContent = 'No pudimos enviar tu pedido. Revisa tu conexión e inténtalo de nuevo; tu carrito sigue guardado.';
+  } finally {
+    sending = false;
+    $('sendBtn').disabled = false;
+    $('sendBtn').textContent = 'Enviar pedido';
+  }
 });
+
+/* ---------- Seguimiento del pedido ---------- */
+let active = loadActive();
+let pollTimer = null;
+
+function loadActive() {
+  try {
+    const o = JSON.parse(store.getItem(ORDER_KEY) || 'null');
+    return o && o.id && Date.now() - o.at < ORDER_TTL_MS ? o : null;
+  } catch { return null; }
+}
+function setActive(o) {
+  active = o;
+  try { o ? store.setItem(ORDER_KEY, JSON.stringify(o)) : store.removeItem(ORDER_KEY); } catch { /* sin storage */ }
+  schedulePoll();
+  render();
+}
+
+function renderTrack() {
+  const o = active;
+  const p = progress(o.status, o.type);
+  $('trackCode').textContent = `Pedido #${o.code}`;
+  $('trackMsg').textContent = customerMessage(o.status, o.type);
+  $('trackMsg').dataset.status = o.status;
+  $('trackSteps').innerHTML = p.cancelled ? '' : p.steps.map((s) =>
+    `<li class="${s.state}"${s.state === 'current' ? ' aria-current="step"' : ''}><span class="mark" aria-hidden="true"></span>${esc(s.label)}</li>`).join('');
+  $('trackWhere').textContent = o.type === 'mesa' ? `Mesa ${o.table}` : 'Domicilio';
+  $('trackNote').textContent = isActive(o.status) ? 'Esta pantalla se actualiza sola.' : '';
+  $('newOrder').hidden = isActive(o.status);
+  $('trackBtnText').textContent = `Pedido #${o.code} · ${progressLabel(o)}`;
+}
+const progressLabel = (o) => ({ pendiente: 'Pendiente', confirmado: 'Confirmado', en_cocina: 'En cocina', listo: 'Listo', en_despacho: 'En despacho', entregado: 'Entregado', cancelado: 'Cancelado' }[o.status] || '');
+
+$('newOrder').addEventListener('click', () => { setActive(null); view = 'cart'; sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
+
+async function pollOnce() {
+  if (!active || !isActive(active.status)) return;
+  try {
+    const r = await sb.rpc('get_order_status', { p_id: active.id });
+    if (!r) { setActive(null); return; }
+    if (r.status !== active.status) {
+      setActive({ ...active, status: r.status });
+      $('live').textContent = customerMessage(r.status, active.type);
+    }
+  } catch { /* sin red: se reintenta en el siguiente ciclo */ }
+}
+function schedulePoll() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  if (active && isActive(active.status)) pollTimer = setInterval(pollOnce, POLL_MS);
+}
 
 /* Categoría activa al hacer scroll */
 function watchCategories() {
@@ -200,3 +289,5 @@ renderStatic();
 syncType();
 render();
 watchCategories();
+schedulePoll();
+pollOnce();

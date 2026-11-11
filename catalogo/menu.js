@@ -1,7 +1,7 @@
-// DATOS DE EJEMPLO: cambia el nombre, el teléfono (con indicativo, sin +) y los productos.
+// DATOS DE EJEMPLO: cambia el nombre, el horario, el número de mesas y los productos.
 export const BUSINESS = {
   name: 'Burger Fest',
-  phone: '573001234567',
+  tables: 12, // mesas disponibles para elegir al pedir
   currency: 'COP',
   hours: 'Todos los días · 11:00 a.m. – 11:00 p.m.',
   deliveryNote: 'Domicilio en 30–45 min',

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Burger Fest | Pide tu comida rápida</title>
-<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido y envíalo por WhatsApp en un minuto.">
+<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido, envíalo al local y síguelo en vivo.">
 <meta name="theme-color" content="#DC2626">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -30,7 +30,7 @@
     <div class="hero-copy">
       <p class="kicker">Pide fácil · Llega caliente</p>
       <h1>¿Hambre?<br><span>Pídelo ya.</span></h1>
-      <p class="lead">Elige tus favoritos, arma tu pedido y envíalo por WhatsApp. Sin registros ni vueltas.</p>
+      <p class="lead">Elige tus favoritos, arma tu pedido y síguelo en vivo desde tu celular. Sin registros ni vueltas.</p>
       <a class="btn btn-gold" href="#menu">Ver el menú
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
@@ -52,7 +52,12 @@
 </footer>
 
 <div class="cartbar" id="cartbar" hidden>
-  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button">
+  <button class="btn btn-ink cartbar-btn" id="trackBtn" type="button" hidden>
+    <span class="dot" aria-hidden="true"></span>
+    <span id="trackBtnText">Pedido</span>
+    <strong>Ver estado</strong>
+  </button>
+  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button" hidden>
     <span class="cartbar-n" id="barCount">0</span>
     <span>Ver mi pedido</span>
     <strong id="barTotal">$0</strong>
@@ -82,35 +87,54 @@
       <form id="orderForm" novalidate>
         <h3>Tus datos</h3>
 
+        <fieldset class="seg">
+          <legend>¿Dónde lo recibes?</legend>
+          <label><input type="radio" name="type" value="mesa" checked><span>En mesa</span></label>
+          <label><input type="radio" name="type" value="domicilio"><span>Domicilio</span></label>
+        </fieldset>
+
         <div class="field">
           <label for="name">Nombre</label>
-          <input id="name" name="name" type="text" autocomplete="name" required aria-describedby="nameErr">
+          <input id="name" name="name" type="text" autocomplete="name" maxlength="80" required aria-describedby="nameErr">
           <p class="err" id="nameErr" role="alert"></p>
         </div>
 
-        <fieldset class="seg">
-          <legend>¿Cómo lo recibes?</legend>
-          <label><input type="radio" name="type" value="domicilio" checked><span>Domicilio</span></label>
-          <label><input type="radio" name="type" value="recoger"><span>Recoger en el local</span></label>
-        </fieldset>
+        <div class="field" id="tableField">
+          <label for="table">Número de mesa</label>
+          <select id="table" name="table" aria-describedby="tableErr"></select>
+          <p class="err" id="tableErr" role="alert"></p>
+        </div>
 
-        <div class="field" id="addressField">
-          <label for="address">Dirección</label>
-          <input id="address" name="address" type="text" autocomplete="street-address" aria-describedby="addressErr" placeholder="Calle, número, barrio">
+        <div class="field" id="addressField" hidden>
+          <label for="address">Dirección de entrega</label>
+          <input id="address" name="address" type="text" autocomplete="street-address" maxlength="200" aria-describedby="addressErr" placeholder="Calle, número, barrio">
           <p class="err" id="addressErr" role="alert"></p>
         </div>
 
         <div class="field">
-          <label for="notes">Notas <span class="opt">(opcional)</span></label>
-          <textarea id="notes" name="notes" rows="2" placeholder="Sin cebolla, extra salsa…"></textarea>
+          <label for="phone">Teléfono <span class="opt" id="phoneOpt">(opcional)</span></label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="25" aria-describedby="phoneErr" placeholder="300 123 4567">
+          <p class="err" id="phoneErr" role="alert"></p>
         </div>
 
-        <button class="btn btn-wa" id="sendBtn" type="submit">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 8.5c0 3.6 2.9 6.5 6.5 6.5l1-1.6-2-1-.9.8c-1-.4-1.8-1.2-2.2-2.2l.8-.9-1-2Z" fill="currentColor"/></svg>
-          Enviar pedido por WhatsApp
-        </button>
+        <div class="field">
+          <label for="notes">Notas <span class="opt">(opcional)</span></label>
+          <textarea id="notes" name="notes" rows="2" maxlength="300" placeholder="Sin cebolla, extra salsa…"></textarea>
+        </div>
+
+        <button class="btn btn-wa" id="sendBtn" type="submit">Enviar pedido</button>
         <p class="hint" id="sendStatus" role="status"></p>
       </form>
+    </div>
+
+    <div id="trackView" hidden>
+      <p class="track-code" id="trackCode"></p>
+      <p class="track-msg" id="trackMsg" role="status"></p>
+      <ol class="steps" id="trackSteps"></ol>
+      <p class="track-where" id="trackWhere"></p>
+      <p class="hint" id="trackNote"></p>
+      <button class="btn btn-red" id="newOrder" type="button" hidden>Hacer otro pedido</button>
+      <button class="link-btn" id="backFromTrack" type="button">Volver al menú</button>
     </div>
   </div>
 </dialog>
