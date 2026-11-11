@@ -106,3 +106,14 @@ test('isLate: pendiente tarda ≥3 min; los demás activos ≥20; los cerrados n
   assert.equal(isLate('en_cocina', 20), true);
   assert.equal(isLate('entregado', 500), false);
 });
+
+import { keyFromHash } from '../orders.js';
+
+test('keyFromHash extrae la clave del enlace privado y rechaza lo demás', () => {
+  const k = 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90';
+  assert.equal(keyFromHash('#k=' + k), k);
+  assert.equal(keyFromHash('#k=corta'), null);
+  assert.equal(keyFromHash('#otra=' + k), null);
+  assert.equal(keyFromHash(''), null);
+  assert.equal(keyFromHash('#k=' + k + '"><script>'), null);
+});

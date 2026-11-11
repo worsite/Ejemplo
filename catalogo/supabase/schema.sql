@@ -33,37 +33,30 @@ drop trigger if exists orders_updated_at on public.orders;
 create trigger orders_updated_at before update on public.orders
   for each row execute function public.set_updated_at();
 
--- 2) Administradores ----------------------------------------------------
-create table if not exists public.admins (
-  user_id    uuid primary key references auth.users (id) on delete cascade,
+-- 2) Acceso del panel por enlace privado --------------------------------
+--    (sin correo ni contraseña: se guarda solo el HASH de la clave)
+create table if not exists public.admin_keys (
+  key_hash   text primary key,
   created_at timestamptz not null default now()
 );
 
-create or replace function public.is_admin() returns boolean
+create or replace function public.check_admin_key(p_key text) returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.admins where user_id = auth.uid());
+  select exists (
+    select 1 from public.admin_keys
+     where key_hash = encode(sha256(convert_to(coalesce(p_key, ''), 'utf8')), 'hex'));
 $$;
 
--- 3) Seguridad (RLS): el público NO puede leer ni escribir pedidos directo
+-- 3) Seguridad (RLS): NADIE accede a las tablas directamente; todo pasa por funciones
 alter table public.orders enable row level security;
-alter table public.admins enable row level security;
+alter table public.admin_keys enable row level security;
+revoke all on table public.orders, public.admin_keys from anon, authenticated;
 
-revoke all on table public.orders, public.admins from anon, authenticated;
-grant select on public.orders to authenticated;
-grant update (status) on public.orders to authenticated;   -- el admin solo puede cambiar el estado
-grant select on public.admins to authenticated;
-
+-- Limpieza de la versión anterior (correo y contraseña), si la habías ejecutado
 drop policy if exists "admin lee pedidos" on public.orders;
-create policy "admin lee pedidos" on public.orders
-  for select to authenticated using (public.is_admin());
-
 drop policy if exists "admin actualiza estado" on public.orders;
-create policy "admin actualiza estado" on public.orders
-  for update to authenticated using (public.is_admin()) with check (public.is_admin());
-
-drop policy if exists "admin se ve a si mismo" on public.admins;
-create policy "admin se ve a si mismo" on public.admins
-  for select to authenticated using (user_id = auth.uid());
+drop function if exists public.is_admin();
+drop table if exists public.admins;
 
 -- 4) Funciones públicas (lo único que puede usar el cliente anónimo) ----
 create or replace function public.create_order(
@@ -110,9 +103,44 @@ revoke all on function public.get_order_status(uuid) from public;
 grant execute on function public.create_order(text, text, text, integer, text, text, jsonb, integer) to anon, authenticated;
 grant execute on function public.get_order_status(uuid) to anon, authenticated;
 
--- 5) Da de alta TU usuario como administrador (haz esto DESPUÉS de crearlo
---    en Authentication → Users). Cambia el correo y ejecuta solo estas líneas:
+-- 5) Funciones del panel (exigen la clave; con una clave mala responden 403) --
+create or replace function public.admin_list_orders(p_key text) returns json
+language plpgsql security definer set search_path = public as $$
+begin
+  if not public.check_admin_key(p_key) then
+    perform pg_sleep(1);  -- frena los intentos de adivinar la clave
+    raise exception 'No autorizado' using errcode = '28000';
+  end if;
+  return coalesce((select json_agg(o) from (
+    select * from public.orders order by created_at desc limit 200) o), '[]'::json);
+end $$;
+
+create or replace function public.admin_set_status(p_key text, p_id uuid, p_status text) returns json
+language plpgsql security definer set search_path = public as $$
+declare v_row public.orders;
+begin
+  if not public.check_admin_key(p_key) then
+    perform pg_sleep(1);
+    raise exception 'No autorizado' using errcode = '28000';
+  end if;
+  update public.orders set status = p_status where id = p_id returning * into v_row;
+  if not found then raise exception 'Pedido no encontrado'; end if;
+  return row_to_json(v_row);
+end $$;
+
+revoke all on function public.admin_list_orders(text) from public;
+revoke all on function public.admin_set_status(text, uuid, text) from public;
+revoke all on function public.check_admin_key(text) from public, anon, authenticated;
+grant execute on function public.admin_list_orders(text) to anon, authenticated;
+grant execute on function public.admin_set_status(text, uuid, text) to anon, authenticated;
+
+-- 6) CREA TU ENLACE PRIVADO DEL PANEL ------------------------------------
+--    Ejecuta SOLO este bloque (selecciónalo y pulsa Run). Te devuelve una
+--    fila con tu enlace: cópialo y guárdalo (solo se muestra esta vez; en la
+--    base queda únicamente su hash). Para cambiarlo o revocarlo, repite el
+--    bloque y borra la fila vieja de admin_keys.
 --
--- insert into public.admins (user_id)
--- select id from auth.users where email = 'tu-correo@ejemplo.com'
--- on conflict do nothing;
+-- with k as (select replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') as clave),
+--      ins as (insert into public.admin_keys (key_hash)
+--              select encode(sha256(convert_to(clave, 'utf8')), 'hex') from k)
+-- select 'admin.html#k=' || clave as tu_enlace_privado from k;

@@ -2,12 +2,14 @@ import { createSupabase } from './supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { BUSINESS } from './menu.js';
 import { formatCOP } from './cart.js';
-import { STATUS, nextStatus, nextLabel, isActive, minutesAgo, elapsedLabel, isLate } from './orders.js';
+import { STATUS, nextStatus, nextLabel, isActive, minutesAgo, elapsedLabel, isLate, keyFromHash } from './orders.js';
 import { $, esc } from './util.js';
 
 const POLL_MS = 5000;
 const store = (() => { try { return window.localStorage; } catch { return null; } })();
-const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY, storage: store });
+const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
+const KEY_STORE = 'burgerfest-admin-key-v1';
+let adminKey = null;   // clave del enlace privado (se recuerda en este equipo)
 
 const COLUMNS = [
   { id: 'pendiente', title: 'Nuevos', statuses: ['pendiente'] },
@@ -51,15 +53,19 @@ function renderSound() {
 }
 
 /* ---------- Pantallas ---------- */
-function showLogin(msg = '') {
+function showLocked(msg = '') {
   clearInterval(timer); timer = null;
   $('panel').hidden = true;
-  $('login').hidden = false;
-  $('loginErr').textContent = msg;
+  $('locked').hidden = false;
+  $('lockedErr').textContent = msg;
   document.title = 'Panel de pedidos | ' + BUSINESS.name;
 }
+function forgetKey() {
+  adminKey = null;
+  try { store?.removeItem(KEY_STORE); } catch { /* sin storage */ }
+}
 function showPanel() {
-  $('login').hidden = true;
+  $('locked').hidden = true;
   $('panel').hidden = false;
   $('panelTitle').textContent = `Pedidos · ${BUSINESS.name}`;
   renderSound();
@@ -80,12 +86,12 @@ function setConn(ok) {
 /* ---------- Datos ---------- */
 async function poll() {
   try {
-    const rows = await sb.select('orders', 'select=*&order=created_at.desc&limit=200');
+    const rows = await sb.rpc('admin_list_orders', { p_key: adminKey });
     setConn(true);
     notice('');
     apply(Array.isArray(rows) ? rows : []);
   } catch (e) {
-    if (e.status === 401 || e.status === 403 || !sb.getSession()) { sb.signOut(); showLogin('Tu sesión venció. Entra de nuevo.'); return; }
+    if (e.status === 403) { forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
     setConn(false);
   }
 }
@@ -106,12 +112,12 @@ async function setStatus(id, status) {
   if (busy.has(id)) return;
   busy.add(id); confirmCancel = null; render();
   try {
-    const rows = await sb.update('orders', `id=eq.${encodeURIComponent(id)}`, { status });
-    if (!Array.isArray(rows) || !rows.length) throw new Error('sin permiso');
-    orders = orders.map((o) => (o.id === id ? { ...o, ...rows[0] } : o));
+    const row = await sb.rpc('admin_set_status', { p_key: adminKey, p_id: id, p_status: status });
+    if (!row || !row.id) throw new Error('respuesta inválida');
+    orders = orders.map((o) => (o.id === id ? { ...o, ...row } : o));
     notice('');
   } catch (e) {
-    if (e.status === 401) { sb.signOut(); showLogin('Tu sesión venció. Entra de nuevo.'); busy.delete(id); return; }
+    if (e.status === 403) { busy.delete(id); forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
     notice('No se pudo cambiar el estado del pedido. Revisa la conexión e inténtalo de nuevo.');
   } finally { busy.delete(id); }
   render();
@@ -210,27 +216,19 @@ $('soundBtn').addEventListener('click', () => {
   unlockAudio(); renderSound(); if (soundOn) beep();
 });
 
-$('logoutBtn').addEventListener('click', () => { sb.signOut(); showLogin(''); });
+$('logoutBtn').addEventListener('click', () => { forgetKey(); showLocked(''); });
 
-$('loginForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const email = $('email').value.trim(), password = $('password').value;
-  if (!email || !password) { $('loginErr').textContent = 'Escribe tu correo y tu contraseña.'; return; }
-  $('loginBtn').disabled = true; $('loginBtn').textContent = 'Entrando…'; $('loginErr').textContent = '';
-  unlockAudio();
-  try {
-    await sb.signIn(email, password);
-    const adm = await sb.select('admins', 'select=user_id');
-    if (!Array.isArray(adm) || !adm.length) {
-      sb.signOut();
-      throw Object.assign(new Error('Tu usuario existe, pero aún no está autorizado como administrador (paso 3 de supabase/README.md).'), { status: 403 });
-    }
-    $('password').value = '';
-    showPanel();
-  } catch (err) {
-    $('loginErr').textContent = err.status ? err.message : 'No pudimos conectar. Revisa tu conexión e inténtalo de nuevo.';
-  } finally { $('loginBtn').disabled = false; $('loginBtn').textContent = 'Entrar'; }
-});
-
-/* Inicio: si hay sesión guardada, entra directo */
-if (sb.getSession()) showPanel(); else showLogin();
+/* Inicio: el enlace privado trae la clave en "#k=…"; se guarda y se quita de la barra de direcciones */
+function acceptLink() {
+  const k = keyFromHash(location.hash);
+  if (!k) return false;
+  adminKey = k;
+  try { store?.setItem(KEY_STORE, k); } catch { /* sin storage: vale mientras la pestaña esté abierta */ }
+  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* nada */ }
+  return true;
+}
+window.addEventListener('hashchange', () => { if (acceptLink()) showPanel(); });  // enlace pegado en una pestaña ya abierta
+if (!acceptLink()) {
+  try { adminKey = store?.getItem(KEY_STORE) || null; } catch { adminKey = null; }
+}
+if (adminKey) showPanel(); else showLocked();

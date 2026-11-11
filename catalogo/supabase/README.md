@@ -1,20 +1,15 @@
 # Puesta en marcha de Supabase (una sola vez)
 
-1. **Crear las tablas y reglas.** En tu proyecto de Supabase abre **SQL Editor → New query**, pega todo `schema.sql` y pulsa **Run**.
-2. **Crear tu usuario administrador.** **Authentication → Users → Add user → Create new user**: correo y contraseña (marca *Auto Confirm User*).
-3. **Autorizarlo como admin.** En el SQL Editor ejecuta (con tu correo):
-   ```sql
-   insert into public.admins (user_id)
-   select id from auth.users where email = 'tu-correo@ejemplo.com'
-   on conflict do nothing;
-   ```
-4. **Recomendado:** en **Authentication → Sign In / Providers**, desactiva *Allow new users to sign up*, para que nadie más pueda crear cuentas.
-5. Abre `admin.html`, entra con ese correo y contraseña, y haz un pedido de prueba desde el catálogo.
+1. **Crear las tablas y reglas.** En tu proyecto de Supabase abre **SQL Editor → New query**, pega todo `schema.sql` y pulsa **Run**. (Si ya habías ejecutado la versión anterior con correo y contraseña, se actualiza sola: elimina lo viejo y no pierde pedidos.)
+2. **Crear tu enlace privado del panel.** Al final de `schema.sql` hay un bloque comentado (paso 6). Quítale los `-- `, **ejecuta solo ese bloque** y te devuelve una fila `tu_enlace_privado` con algo como `admin.html#k=3f9a…`. Cópialo y guárdalo: es la única vez que se muestra (en la base solo queda su huella, no la clave).
+3. **Entrar.** Abre `admin.html` **con ese enlace completo** una vez en cada dispositivo (celular de la caja, tablet de la cocina…). Desde ahí basta con abrir `admin.html` (o guardarlo como favorito): entra directo, sin correo ni contraseña.
+4. Haz un pedido de prueba desde el catálogo y mira que aparezca en el panel.
 
 ## Cómo está protegido
-- El cliente público solo usa la clave `anon` y solo puede llamar a `create_order` y `get_order_status` (que devuelve únicamente el estado de **un** pedido si conoces su identificador, un UUID imposible de adivinar). No puede listar ni leer pedidos.
-- Para ver o cambiar pedidos hay que iniciar sesión **y** estar en la tabla `admins`. El admin solo puede modificar la columna `status`.
-- La base recalcula que el total coincida con los productos enviados. Los **precios** los envía el catálogo; si algún día quieres blindarlos del todo, el siguiente paso es guardar los productos en una tabla y leer los precios desde ahí.
+- El panel **no tiene contraseña, pero sí una clave larga (64 caracteres) dentro del enlace**. Quien no tenga el enlace no ve ni cambia nada: la base exige la clave en cada consulta y, si es incorrecta, responde "No autorizado" tras 1 segundo.
+- **Trata el enlace como una contraseña**: no lo publiques ni lo pegues en grupos abiertos. Si se filtra o se pierde un equipo, borra la fila de `admin_keys` y genera un enlace nuevo (paso 2); los equipos con el enlace viejo quedan bloqueados solos.
+- Las tablas no se pueden leer ni escribir directamente: el público solo puede llamar a `create_order` y `get_order_status` (que devuelve únicamente el estado de **un** pedido si conoces su identificador UUID).
+- La base recalcula que el total coincida con los productos enviados. Los **precios** los envía el catálogo; si quieres blindarlos del todo, el siguiente paso es guardar los productos en una tabla y leer los precios desde ahí.
 
 ## Archivos para publicar
 - Versión modular: la carpeta `catalogo/` (`index.html` = catálogo, `admin.html` = panel). Necesita un servidor web (cualquier hosting estático sirve).
