@@ -109,7 +109,7 @@ code { padding: 1px 6px; background: var(--paper); border: 2px solid var(--ink);
   <section class="login-card">
     <h1>Panel de pedidos</h1>
     <p class="muted">Solo para el personal del local.</p>
-    <p id="lockedMsg">Abre el <b>enlace privado</b> del panel (el que termina en <code>#k=…</code>). Solo hace falta una vez en cada dispositivo; después basta con abrir esta página.</p>
+    <p id="lockedMsg">No se pudo abrir el panel.</p>
     <p class="err" id="lockedErr" role="alert"></p>
   </section>
 </main>
@@ -120,7 +120,6 @@ code { padding: 1px 6px; background: var(--paper); border: 2px solid var(--ink);
     <div class="top-actions">
       <span class="conn" id="conn" role="status">Conectando…</span>
       <button class="btn btn-ghost" id="soundBtn" type="button" aria-pressed="true">Sonido: sí</button>
-      <button class="btn btn-ghost" id="logoutBtn" type="button">Salir de este equipo</button>
     </div>
   </header>
 
@@ -142,6 +141,10 @@ code { padding: 1px 6px; background: var(--paper); border: 2px solid var(--ink);
 // NUNCA pongas aquí la clave "service_role".
 const SUPABASE_URL = 'https://uzvxcyqlifhcgdwubsdl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dnhjeXFsaWZoY2dkd3Vic2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0Mjg3MjksImV4cCI6MjExMDAwNDcyOX0.x2Bblg6vfx0k0hMR7lnLrKlsyOGNdRL0s-wBEM2KgnI';
+
+// Clave de acceso directo al panel (admin.html). La base solo guarda su huella (ver schema.sql, paso 6).
+// OJO: al estar aquí, cualquiera que abra admin.html entra al panel. Mantén la dirección de admin.html en privado.
+const ADMIN_KEY = '73f6946834627ff059972f6c1db758c5d47cdf79a703a3fea2ffc9828c828e34';
 
 // ---- menu.js ----
 // DATOS DE EJEMPLO: cambia el nombre, el horario, el número de mesas y los productos.
@@ -332,12 +335,6 @@ function isLate(status, min) {
   return min >= (status === 'pendiente' ? 3 : 20);
 }
 
-// El enlace privado del panel termina en "#k=<clave>" (16–128 caracteres seguros).
-function keyFromHash(hash) {
-  const m = /^#k=([A-Za-z0-9_-]{16,128})$/.exec(String(hash || ''));
-  return m ? m[1] : null;
-}
-
 // ---- util.js ----
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -369,8 +366,7 @@ function createSupabase({ url, key, fetch: fetchFn = (...a) => globalThis.fetch(
 const POLL_MS = 5000;
 const store = (() => { try { return window.localStorage; } catch { return null; } })();
 const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
-const KEY_STORE = 'burgerfest-admin-key-v1';
-let adminKey = null;   // clave del enlace privado (se recuerda en este equipo)
+const adminKey = ADMIN_KEY;   // acceso directo: la clave viene en config.js
 
 const COLUMNS = [
   { id: 'pendiente', title: 'Nuevos', statuses: ['pendiente'] },
@@ -421,10 +417,7 @@ function showLocked(msg = '') {
   $('lockedErr').textContent = msg;
   document.title = 'Panel de pedidos | ' + BUSINESS.name;
 }
-function forgetKey() {
-  adminKey = null;
-  try { store?.removeItem(KEY_STORE); } catch { /* sin storage */ }
-}
+const KEY_REJECTED = 'La clave del panel no es válida. Revisa que ADMIN_KEY en config.js coincida con la que registraste en Supabase (schema.sql, paso 6).';
 function showPanel() {
   $('locked').hidden = true;
   $('panel').hidden = false;
@@ -452,7 +445,7 @@ async function poll() {
     notice('');
     apply(Array.isArray(rows) ? rows : []);
   } catch (e) {
-    if (e.status === 403) { forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
+    if (e.status === 403) { showLocked(KEY_REJECTED); return; }
     setConn(false);
   }
 }
@@ -478,7 +471,7 @@ async function setStatus(id, status) {
     orders = orders.map((o) => (o.id === id ? { ...o, ...row } : o));
     notice('');
   } catch (e) {
-    if (e.status === 403) { busy.delete(id); forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
+    if (e.status === 403) { busy.delete(id); showLocked(KEY_REJECTED); return; }
     notice('No se pudo cambiar el estado del pedido. Revisa la conexión e inténtalo de nuevo.');
   } finally { busy.delete(id); }
   render();
@@ -577,22 +570,7 @@ $('soundBtn').addEventListener('click', () => {
   unlockAudio(); renderSound(); if (soundOn) beep();
 });
 
-$('logoutBtn').addEventListener('click', () => { forgetKey(); showLocked(''); });
-
-/* Inicio: el enlace privado trae la clave en "#k=…"; se guarda y se quita de la barra de direcciones */
-function acceptLink() {
-  const k = keyFromHash(location.hash);
-  if (!k) return false;
-  adminKey = k;
-  try { store?.setItem(KEY_STORE, k); } catch { /* sin storage: vale mientras la pestaña esté abierta */ }
-  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* nada */ }
-  return true;
-}
-window.addEventListener('hashchange', () => { if (acceptLink()) showPanel(); });  // enlace pegado en una pestaña ya abierta
-if (!acceptLink()) {
-  try { adminKey = store?.getItem(KEY_STORE) || null; } catch { adminKey = null; }
-}
-if (adminKey) showPanel(); else showLocked();
+if (adminKey) showPanel(); else showLocked(KEY_REJECTED);
 
 </script>
 </body>

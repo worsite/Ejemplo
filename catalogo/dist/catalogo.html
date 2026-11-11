@@ -690,12 +690,6 @@ function isLate(status, min) {
   return min >= (status === 'pendiente' ? 3 : 20);
 }
 
-// El enlace privado del panel termina en "#k=<clave>" (16–128 caracteres seguros).
-function keyFromHash(hash) {
-  const m = /^#k=([A-Za-z0-9_-]{16,128})$/.exec(String(hash || ''));
-  return m ? m[1] : null;
-}
-
 // ---- supabase.js ----
 // Cliente mínimo de Supabase: solo llamadas a funciones (RPC) con la clave pública "anon".
 function createSupabase({ url, key, fetch: fetchFn = (...a) => globalThis.fetch(...a) }) {
@@ -723,6 +717,10 @@ function createSupabase({ url, key, fetch: fetchFn = (...a) => globalThis.fetch(
 // NUNCA pongas aquí la clave "service_role".
 const SUPABASE_URL = 'https://uzvxcyqlifhcgdwubsdl.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dnhjeXFsaWZoY2dkd3Vic2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0Mjg3MjksImV4cCI6MjExMDAwNDcyOX0.x2Bblg6vfx0k0hMR7lnLrKlsyOGNdRL0s-wBEM2KgnI';
+
+// Clave de acceso directo al panel (admin.html). La base solo guarda su huella (ver schema.sql, paso 6).
+// OJO: al estar aquí, cualquiera que abra admin.html entra al panel. Mantén la dirección de admin.html en privado.
+const ADMIN_KEY = '73f6946834627ff059972f6c1db758c5d47cdf79a703a3fea2ffc9828c828e34';
 
 // ---- app.js ----
 

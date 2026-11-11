@@ -1,15 +1,14 @@
 import { createSupabase } from './supabase.js';
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_KEY } from './config.js';
 import { BUSINESS } from './menu.js';
 import { formatCOP } from './cart.js';
-import { STATUS, nextStatus, nextLabel, isActive, minutesAgo, elapsedLabel, isLate, keyFromHash } from './orders.js';
+import { STATUS, nextStatus, nextLabel, isActive, minutesAgo, elapsedLabel, isLate } from './orders.js';
 import { $, esc } from './util.js';
 
 const POLL_MS = 5000;
 const store = (() => { try { return window.localStorage; } catch { return null; } })();
 const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
-const KEY_STORE = 'burgerfest-admin-key-v1';
-let adminKey = null;   // clave del enlace privado (se recuerda en este equipo)
+const adminKey = ADMIN_KEY;   // acceso directo: la clave viene en config.js
 
 const COLUMNS = [
   { id: 'pendiente', title: 'Nuevos', statuses: ['pendiente'] },
@@ -60,10 +59,7 @@ function showLocked(msg = '') {
   $('lockedErr').textContent = msg;
   document.title = 'Panel de pedidos | ' + BUSINESS.name;
 }
-function forgetKey() {
-  adminKey = null;
-  try { store?.removeItem(KEY_STORE); } catch { /* sin storage */ }
-}
+const KEY_REJECTED = 'La clave del panel no es válida. Revisa que ADMIN_KEY en config.js coincida con la que registraste en Supabase (schema.sql, paso 6).';
 function showPanel() {
   $('locked').hidden = true;
   $('panel').hidden = false;
@@ -91,7 +87,7 @@ async function poll() {
     notice('');
     apply(Array.isArray(rows) ? rows : []);
   } catch (e) {
-    if (e.status === 403) { forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
+    if (e.status === 403) { showLocked(KEY_REJECTED); return; }
     setConn(false);
   }
 }
@@ -117,7 +113,7 @@ async function setStatus(id, status) {
     orders = orders.map((o) => (o.id === id ? { ...o, ...row } : o));
     notice('');
   } catch (e) {
-    if (e.status === 403) { busy.delete(id); forgetKey(); showLocked('Este enlace ya no es válido. Pide el enlace privado nuevo.'); return; }
+    if (e.status === 403) { busy.delete(id); showLocked(KEY_REJECTED); return; }
     notice('No se pudo cambiar el estado del pedido. Revisa la conexión e inténtalo de nuevo.');
   } finally { busy.delete(id); }
   render();
@@ -216,19 +212,4 @@ $('soundBtn').addEventListener('click', () => {
   unlockAudio(); renderSound(); if (soundOn) beep();
 });
 
-$('logoutBtn').addEventListener('click', () => { forgetKey(); showLocked(''); });
-
-/* Inicio: el enlace privado trae la clave en "#k=…"; se guarda y se quita de la barra de direcciones */
-function acceptLink() {
-  const k = keyFromHash(location.hash);
-  if (!k) return false;
-  adminKey = k;
-  try { store?.setItem(KEY_STORE, k); } catch { /* sin storage: vale mientras la pestaña esté abierta */ }
-  try { history.replaceState(null, '', location.pathname + location.search); } catch { /* nada */ }
-  return true;
-}
-window.addEventListener('hashchange', () => { if (acceptLink()) showPanel(); });  // enlace pegado en una pestaña ya abierta
-if (!acceptLink()) {
-  try { adminKey = store?.getItem(KEY_STORE) || null; } catch { adminKey = null; }
-}
-if (adminKey) showPanel(); else showLocked();
+if (adminKey) showPanel(); else showLocked(KEY_REJECTED);

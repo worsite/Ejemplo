@@ -98,9 +98,3 @@ export function isLate(status, min) {
   if (!isActive(status)) return false;
   return min >= (status === 'pendiente' ? 3 : 20);
 }
-
-// El enlace privado del panel termina en "#k=<clave>" (16–128 caracteres seguros).
-export function keyFromHash(hash) {
-  const m = /^#k=([A-Za-z0-9_-]{16,128})$/.exec(String(hash || ''));
-  return m ? m[1] : null;
-}

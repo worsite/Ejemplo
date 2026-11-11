@@ -134,13 +134,12 @@ revoke all on function public.check_admin_key(text) from public, anon, authentic
 grant execute on function public.admin_list_orders(text) to anon, authenticated;
 grant execute on function public.admin_set_status(text, uuid, text) to anon, authenticated;
 
--- 6) CREA TU ENLACE PRIVADO DEL PANEL ------------------------------------
---    Ejecuta SOLO este bloque (selecciónalo y pulsa Run). Te devuelve una
---    fila con tu enlace: cópialo y guárdalo (solo se muestra esta vez; en la
---    base queda únicamente su hash). Para cambiarlo o revocarlo, repite el
---    bloque y borra la fila vieja de admin_keys.
---
--- with k as (select replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', '') as clave),
---      ins as (insert into public.admin_keys (key_hash)
---              select encode(sha256(convert_to(clave, 'utf8')), 'hex') from k)
--- select 'admin.html#k=' || clave as tu_enlace_privado from k;
+-- 6) Acceso directo del panel -------------------------------------------
+--    Registra la huella de la clave ADMIN_KEY que está en config.js. Quien abre
+--    admin.html entra sin escribir nada. Para cambiar la clave: genera una nueva,
+--    ponla en config.js, agrega aquí su huella (sha256 en hexadecimal) y borra la vieja
+--    de admin_keys.
+delete from public.admin_keys;   -- (versión anterior: claves de enlace privado)
+insert into public.admin_keys (key_hash)
+values ('4f8c6e9953477dd4c97c8dfba51c4b0d6ba5f98f31e7154342dc385710a8b57f')
+on conflict do nothing;

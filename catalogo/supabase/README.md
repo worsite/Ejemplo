@@ -1,22 +1,22 @@
 # Puesta en marcha de Supabase (una sola vez)
 
-1. **Crear las tablas y reglas.** En tu proyecto de Supabase abre **SQL Editor → New query**, pega todo `schema.sql` y pulsa **Run**. (Si ya habías ejecutado la versión anterior con correo y contraseña, se actualiza sola: elimina lo viejo y no pierde pedidos.)
-2. **Crear tu enlace privado del panel.** Al final de `schema.sql` hay un bloque comentado (paso 6). Quítale los `-- `, **ejecuta solo ese bloque** y te devuelve una fila `tu_enlace_privado` con algo como `admin.html#k=3f9a…`. Cópialo y guárdalo: es la única vez que se muestra (en la base solo queda su huella, no la clave).
-3. **Entrar.** Abre `admin.html` **con ese enlace completo** una vez en cada dispositivo (celular de la caja, tablet de la cocina…). Desde ahí basta con abrir `admin.html` (o guardarlo como favorito): entra directo, sin correo ni contraseña.
-4. Haz un pedido de prueba desde el catálogo y mira que aparezca en el panel.
+1. En tu proyecto de Supabase abre **SQL Editor → New query**, pega todo `schema.sql` y pulsa **Run**. Es todo lo que hace falta: crea las tablas, las reglas de seguridad y registra la clave del panel. (Se puede ejecutar varias veces, y actualiza solo desde versiones anteriores sin perder pedidos.)
+2. Abre `admin.html`: **entra directo, sin correo, contraseña ni enlace especial.**
+3. Haz un pedido de prueba desde el catálogo y mira que aparezca en el panel.
 
-## Cómo está protegido
-- El panel **no tiene contraseña, pero sí una clave larga (64 caracteres) dentro del enlace**. Quien no tenga el enlace no ve ni cambia nada: la base exige la clave en cada consulta y, si es incorrecta, responde "No autorizado" tras 1 segundo.
-- **Trata el enlace como una contraseña**: no lo publiques ni lo pegues en grupos abiertos. Si se filtra o se pierde un equipo, borra la fila de `admin_keys` y genera un enlace nuevo (paso 2); los equipos con el enlace viejo quedan bloqueados solos.
-- Las tablas no se pueden leer ni escribir directamente: el público solo puede llamar a `create_order` y `get_order_status` (que devuelve únicamente el estado de **un** pedido si conoces su identificador UUID).
-- La base recalcula que el total coincida con los productos enviados. Los **precios** los envía el catálogo; si quieres blindarlos del todo, el siguiente paso es guardar los productos en una tabla y leer los precios desde ahí.
+## Importante sobre el acceso directo
+- La clave del panel (`ADMIN_KEY`) está dentro de `config.js` y, por tanto, dentro de `admin.html`. **Cualquiera que abra `admin.html` entra al panel y ve nombres, teléfonos y direcciones de los clientes.** Por eso conviene:
+  - No publicar ni enlazar `admin.html` desde el catálogo ni redes sociales.
+  - Guardarlo con un nombre difícil de adivinar (por ejemplo `panel-7k2x9.html`) y compartir la dirección solo con el personal.
+- La base **sigue protegida por dentro**: las tablas no se pueden leer ni escribir directamente (ni con la clave pública del proyecto); solo se puede entrar por las funciones del panel con `ADMIN_KEY`, o crear pedidos y consultar el estado de uno por su identificador.
+- Si algún día quieres cerrar el acceso, hay dos caminos: (a) cambiar la clave: genera una nueva, ponla en `config.js`, agrega su huella `sha256` al paso 6 de `schema.sql`, bórra la anterior y vuelve a publicar; (b) pedir que se reactive el acceso con correo y contraseña.
 
 ## Archivos para publicar
 - Versión modular: la carpeta `catalogo/` (`index.html` = catálogo, `admin.html` = panel). Necesita un servidor web (cualquier hosting estático sirve).
-- Versión de un solo archivo: `python3 catalogo/build.py` genera `catalogo/dist/catalogo.html` y `catalogo/dist/admin.html`, que se abren con doble clic o se suben a cualquier hosting.
+- Versión de un solo archivo: `python3 catalogo/build.py` genera `catalogo/dist/catalogo.html` y `catalogo/dist/admin.html`.
 - Pruebas: `node --test catalogo/tests/*.test.mjs`.
 
 ## Límites conocidos
-- No hay límite de pedidos por minuto: si recibes spam, activa CAPTCHA/limitación en Supabase o pide ayuda para añadirlo.
-- Los precios los manda el catálogo (ver arriba).
+- No hay límite de pedidos por minuto: si recibes spam, activa CAPTCHA/limitación en Supabase.
+- Los precios los manda el catálogo; la base solo verifica que el total coincida con los productos enviados.
 - El panel se actualiza cada 5 segundos (consulta periódica), no por websockets.
