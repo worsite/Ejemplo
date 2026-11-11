@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Burger Fest | Pide tu comida rápida</title>
-<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido y envíalo por WhatsApp en un minuto.">
+<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido, envíalo al local y síguelo en vivo.">
 <meta name="theme-color" content="#DC2626">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -39,10 +39,11 @@ body {
   background-size: 22px 22px;
   -webkit-text-size-adjust: 100%;
 }
-body.has-bar { padding-bottom: 96px; }
+body.has-bar { padding-bottom: 150px; }
 body:has(dialog[open]) { overflow: hidden; }
 img, svg { display: block; max-width: 100%; }
-button, input, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.05; margin: 0; letter-spacing: .01em; }
 
@@ -67,6 +68,8 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.
 .btn-red { background: var(--red); color: #fff; }
 .btn-red:hover { background: var(--red-dark); }
 .btn-gold { background: var(--gold); color: var(--ink); }
+.btn-ink { background: var(--ink); color: #fff; }
+.btn-ink:hover { background: #2b0505; }
 .btn-wa { background: var(--green); color: #fff; width: 100%; min-height: 54px; font-size: 1.08rem; }
 .btn-wa:hover { background: #166534; }
 
@@ -158,10 +161,13 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 400; line-height: 1.
 .step output { min-width: 28px; text-align: center; font-weight: 700; font-size: 1.1rem; }
 
 /* Barra inferior del carrito */
-.cartbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom)); pointer-events: none; }
+.cartbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; gap: 10px; padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom)); pointer-events: none; }
 .cartbar[hidden] { display: none; }
-.cartbar-btn { width: 100%; max-width: 560px; margin: 0 auto; display: flex; justify-content: space-between; pointer-events: auto; min-height: 56px; font-size: 1.1rem; animation: rise .3s ease; }
+.cartbar-btn { width: 100%; max-width: 560px; margin: 0 auto; gap: 12px; display: flex; justify-content: space-between; pointer-events: auto; min-height: 56px; font-size: 1.1rem; animation: rise .3s ease; }
 .cartbar-n { display: grid; place-items: center; min-width: 30px; height: 30px; padding: 0 8px; background: var(--ink); color: #fff; border-radius: 999px; font-size: .95rem; }
+
+.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); animation: pulse 1.6s ease-in-out infinite; }
+.cartbar-btn span:nth-child(2) { flex: 1; text-align: left; }
 
 /* Hoja del pedido */
 .sheet {
@@ -200,10 +206,11 @@ form h3 { font-size: 1.5rem; margin: 18px 0 12px; }
 .field[hidden] { display: none; }
 label, legend { font-weight: 700; }
 .opt { font-weight: 400; color: var(--muted); }
-input[type="text"], textarea { width: 100%; min-height: 48px; padding: 10px 14px; background: var(--paper); border: var(--border); border-radius: 14px; }
+input[type="text"], input[type="tel"], select, textarea { width: 100%; min-height: 48px; padding: 10px 14px; background: var(--paper); border: var(--border); border-radius: 14px; }
 textarea { resize: vertical; }
+select { appearance: none; background: var(--paper) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9l6 6 6-6' fill='none' stroke='%23450A0A' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 12px center / 22px; padding-right: 44px; }
 input::placeholder, textarea::placeholder { color: #8A6A64; }
-[aria-invalid="true"] { border-color: var(--red-dark); background: #FEE2E2; }
+[aria-invalid="true"] { border-color: var(--red-dark); background-color: #FEE2E2; }
 .err { margin: 0; color: var(--red-dark); font-weight: 700; font-size: .92rem; }
 .err:empty { display: none; }
 
@@ -221,7 +228,25 @@ input::placeholder, textarea::placeholder { color: #8A6A64; }
 .footer { padding: 28px var(--gutter) 40px; background: var(--ink); color: #FFE9E0; text-align: center; font-size: .92rem; }
 .footer p { margin: 0; }
 
+/* Seguimiento */
+#trackView { display: grid; gap: 14px; padding: 18px 0 4px; justify-items: center; text-align: center; }
+.track-code { margin: 0; font-family: var(--font-display); font-size: 2.6rem; color: var(--red); }
+.track-msg { margin: 0; padding: 12px 16px; width: 100%; background: var(--gold); border: var(--border); border-radius: 16px; box-shadow: var(--shadow); font-weight: 700; font-size: 1.1rem; }
+.track-msg[data-status="cancelado"] { background: #FEE2E2; }
+.track-msg[data-status="entregado"] { background: #BBF7D0; }
+.steps { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; max-width: 320px; text-align: left; display: grid; gap: 0; }
+.steps li { position: relative; display: flex; align-items: center; gap: 14px; min-height: 48px; font-weight: 500; color: var(--muted); }
+.steps li:not(:last-child)::after { content: ''; position: absolute; left: 13px; top: 38px; width: 4px; height: 22px; background: rgba(69, 10, 10, .2); border-radius: 2px; }
+.steps .mark { flex: none; width: 30px; height: 30px; border: var(--border); border-radius: 50%; background: var(--paper); }
+.steps li.done { color: var(--ink); }
+.steps li.done .mark { background: var(--green); }
+.steps li.done:not(:last-child)::after { background: var(--green); }
+.steps li.current { color: var(--ink); font-weight: 700; font-size: 1.1rem; }
+.steps li.current .mark { background: var(--gold); animation: pulse 1.6s ease-in-out infinite; }
+.track-where { margin: 0; font-weight: 700; }
+
 /* Animaciones */
+@keyframes pulse { 50% { transform: scale(1.18); } }
 @keyframes float { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-10px) rotate(2deg); } }
 @keyframes rise { from { transform: translateY(30px); opacity: 0; } }
 @keyframes slide { from { transform: translateY(40px); opacity: 0; } }
@@ -271,7 +296,7 @@ input::placeholder, textarea::placeholder { color: #8A6A64; }
     <div class="hero-copy">
       <p class="kicker">Pide fácil · Llega caliente</p>
       <h1>¿Hambre?<br><span>Pídelo ya.</span></h1>
-      <p class="lead">Elige tus favoritos, arma tu pedido y envíalo por WhatsApp. Sin registros ni vueltas.</p>
+      <p class="lead">Elige tus favoritos, arma tu pedido y síguelo en vivo desde tu celular. Sin registros ni vueltas.</p>
       <a class="btn btn-gold" href="#menu">Ver el menú
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </a>
@@ -293,7 +318,12 @@ input::placeholder, textarea::placeholder { color: #8A6A64; }
 </footer>
 
 <div class="cartbar" id="cartbar" hidden>
-  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button">
+  <button class="btn btn-ink cartbar-btn" id="trackBtn" type="button" hidden>
+    <span class="dot" aria-hidden="true"></span>
+    <span id="trackBtnText">Pedido</span>
+    <strong>Ver estado</strong>
+  </button>
+  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button" hidden>
     <span class="cartbar-n" id="barCount">0</span>
     <span>Ver mi pedido</span>
     <strong id="barTotal">$0</strong>
@@ -323,35 +353,54 @@ input::placeholder, textarea::placeholder { color: #8A6A64; }
       <form id="orderForm" novalidate>
         <h3>Tus datos</h3>
 
+        <fieldset class="seg">
+          <legend>¿Dónde lo recibes?</legend>
+          <label><input type="radio" name="type" value="mesa" checked><span>En mesa</span></label>
+          <label><input type="radio" name="type" value="domicilio"><span>Domicilio</span></label>
+        </fieldset>
+
         <div class="field">
           <label for="name">Nombre</label>
-          <input id="name" name="name" type="text" autocomplete="name" required aria-describedby="nameErr">
+          <input id="name" name="name" type="text" autocomplete="name" maxlength="80" required aria-describedby="nameErr">
           <p class="err" id="nameErr" role="alert"></p>
         </div>
 
-        <fieldset class="seg">
-          <legend>¿Cómo lo recibes?</legend>
-          <label><input type="radio" name="type" value="domicilio" checked><span>Domicilio</span></label>
-          <label><input type="radio" name="type" value="recoger"><span>Recoger en el local</span></label>
-        </fieldset>
+        <div class="field" id="tableField">
+          <label for="table">Número de mesa</label>
+          <select id="table" name="table" aria-describedby="tableErr"></select>
+          <p class="err" id="tableErr" role="alert"></p>
+        </div>
 
-        <div class="field" id="addressField">
-          <label for="address">Dirección</label>
-          <input id="address" name="address" type="text" autocomplete="street-address" aria-describedby="addressErr" placeholder="Calle, número, barrio">
+        <div class="field" id="addressField" hidden>
+          <label for="address">Dirección de entrega</label>
+          <input id="address" name="address" type="text" autocomplete="street-address" maxlength="200" aria-describedby="addressErr" placeholder="Calle, número, barrio">
           <p class="err" id="addressErr" role="alert"></p>
         </div>
 
         <div class="field">
-          <label for="notes">Notas <span class="opt">(opcional)</span></label>
-          <textarea id="notes" name="notes" rows="2" placeholder="Sin cebolla, extra salsa…"></textarea>
+          <label for="phone">Teléfono <span class="opt" id="phoneOpt">(opcional)</span></label>
+          <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="25" aria-describedby="phoneErr" placeholder="300 123 4567">
+          <p class="err" id="phoneErr" role="alert"></p>
         </div>
 
-        <button class="btn btn-wa" id="sendBtn" type="submit">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M9 8.5c0 3.6 2.9 6.5 6.5 6.5l1-1.6-2-1-.9.8c-1-.4-1.8-1.2-2.2-2.2l.8-.9-1-2Z" fill="currentColor"/></svg>
-          Enviar pedido por WhatsApp
-        </button>
+        <div class="field">
+          <label for="notes">Notas <span class="opt">(opcional)</span></label>
+          <textarea id="notes" name="notes" rows="2" maxlength="300" placeholder="Sin cebolla, extra salsa…"></textarea>
+        </div>
+
+        <button class="btn btn-wa" id="sendBtn" type="submit">Enviar pedido</button>
         <p class="hint" id="sendStatus" role="status"></p>
       </form>
+    </div>
+
+    <div id="trackView" hidden>
+      <p class="track-code" id="trackCode"></p>
+      <p class="track-msg" id="trackMsg" role="status"></p>
+      <ol class="steps" id="trackSteps"></ol>
+      <p class="track-where" id="trackWhere"></p>
+      <p class="hint" id="trackNote"></p>
+      <button class="btn btn-red" id="newOrder" type="button" hidden>Hacer otro pedido</button>
+      <button class="link-btn" id="backFromTrack" type="button">Volver al menú</button>
     </div>
   </div>
 </dialog>
@@ -360,10 +409,10 @@ input::placeholder, textarea::placeholder { color: #8A6A64; }
 
 <script type="module">
 // ---- menu.js ----
-// DATOS DE EJEMPLO: cambia el nombre, el teléfono (con indicativo, sin +) y los productos.
+// DATOS DE EJEMPLO: cambia el nombre, el horario, el número de mesas y los productos.
 const BUSINESS = {
   name: 'Burger Fest',
-  phone: '573001234567',
+  tables: 12, // mesas disponibles para elegir al pedir
   currency: 'COP',
   hours: 'Todos los días · 11:00 a.m. – 11:00 p.m.',
   deliveryNote: 'Domicilio en 30–45 min',
@@ -521,21 +570,6 @@ function count(cart) {
   return Object.values(cart).reduce((s, q) => s + q, 0);
 }
 
-function buildWhatsAppUrl({ business, lines: ls, total: tot, customer }) {
-  const rows = [
-    `*Nuevo pedido — ${business.name}*`,
-    '',
-    ...ls.map(l => `${l.qty} x ${l.product.name} — ${formatCOP(l.subtotal)}`),
-    '',
-    `Total: ${formatCOP(tot)}`,
-    '',
-    `Nombre: ${customer.name}`,
-    customer.type === 'domicilio' ? `Entrega: Domicilio\nDirección: ${customer.address}` : 'Entrega: Recoger en el local',
-  ];
-  if (customer.notes && customer.notes.trim()) rows.push(`Notas: ${customer.notes.trim()}`);
-  return `https://wa.me/${business.phone}?text=${encodeURIComponent(rows.join('\n'))}`;
-}
-
 function load(storage) {
   try {
     const raw = JSON.parse(storage.getItem(STORAGE_KEY));
@@ -550,10 +584,189 @@ function save(storage, cart) {
   try { storage.setItem(STORAGE_KEY, JSON.stringify(cart)); } catch { /* storage bloqueado o lleno */ }
 }
 
-// ---- app.js ----
-
+// ---- util.js ----
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---- orders.js ----
+// Lógica pura de pedidos: estados, validación y armado del RPC. Sin DOM ni red.
+const STATUS = {
+  pendiente: { label: 'Pendiente', customer: 'Recibimos tu pedido. Estamos esperando que el local lo confirme.' },
+  confirmado: { label: 'Confirmado', customer: '¡Pedido confirmado! En breve empezamos a prepararlo.' },
+  en_cocina: { label: 'En cocina', customer: 'Estamos preparando tu pedido.' },
+  listo: { label: 'Listo', customer: '¡Tu pedido está listo!' },
+  en_despacho: { label: 'En despacho', customer: 'Tu pedido va en camino.' },
+  entregado: { label: 'Entregado', customer: '¡Buen provecho! Gracias por pedir con nosotros.' },
+  cancelado: { label: 'Cancelado', customer: 'Tu pedido fue cancelado. Escríbenos si tienes dudas.' },
+};
+
+const NEXT_LABEL = {
+  confirmado: 'Confirmar pedido', en_cocina: 'Pasar a cocina', listo: 'Marcar listo',
+  en_despacho: 'Despachar', entregado: 'Marcar entregado',
+};
+
+function flow(type) {
+  return type === 'domicilio'
+    ? ['pendiente', 'confirmado', 'en_cocina', 'en_despacho', 'entregado']
+    : ['pendiente', 'confirmado', 'en_cocina', 'listo', 'entregado'];
+}
+
+function nextStatus(status, type) {
+  const f = flow(type);
+  const i = f.indexOf(status);
+  return i === -1 || i === f.length - 1 ? null : f[i + 1];
+}
+
+const nextLabel = (status) => NEXT_LABEL[status] || '';
+const isActive = (status) => status !== 'entregado' && status !== 'cancelado';
+
+function customerMessage(status, type) {
+  if (status === 'listo' && type === 'mesa') return '¡Tu pedido está listo y va para tu mesa!';
+  return (STATUS[status] || STATUS.pendiente).customer;
+}
+
+function progress(status, type) {
+  const f = flow(type);
+  const cur = f.indexOf(status);
+  return {
+    cancelled: status === 'cancelado',
+    steps: f.map((id, i) => ({
+      id, label: STATUS[id].label,
+      state: status === 'cancelado' ? 'todo' : i < cur ? 'done' : i === cur ? 'current' : 'todo',
+    })),
+  };
+}
+
+const digits = (s) => String(s || '').replace(/\D/g, '');
+
+function validateOrderForm(form, { tables }) {
+  const e = {};
+  if (!String(form.name || '').trim()) e.name = 'Escribe tu nombre para el pedido.';
+  if (form.type !== 'mesa' && form.type !== 'domicilio') {
+    e.type = 'Elige si es para mesa o domicilio.';
+    return e;
+  }
+  const phone = String(form.phone || '').trim();
+  if (form.type === 'mesa') {
+    const t = Number(form.table);
+    if (!Number.isInteger(t) || t < 1 || t > tables) e.table = `Elige tu mesa (1 a ${tables}).`;
+    if (phone && digits(phone).length < 7) e.phone = 'Revisa el teléfono: parece incompleto.';
+  } else {
+    if (String(form.address || '').trim().length < 5) e.address = 'Escribe la dirección de entrega.';
+    if (digits(phone).length < 7) e.phone = 'Escribe un teléfono para contactarte.';
+  }
+  return e;
+}
+
+function buildCreateOrderArgs({ lines, total, customer }) {
+  const dom = customer.type === 'domicilio';
+  const phone = String(customer.phone || '').trim();
+  return {
+    p_name: String(customer.name).trim(),
+    p_phone: phone || null,
+    p_type: customer.type,
+    p_table: dom ? null : Number(customer.table),
+    p_address: dom ? String(customer.address).trim() : null,
+    p_notes: String(customer.notes || '').trim().slice(0, 300) || null,
+    p_items: lines.map((l) => ({ id: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
+    p_total: total,
+  };
+}
+
+function minutesAgo(iso, nowMs) {
+  return Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 60000));
+}
+
+function elapsedLabel(min) {
+  if (min < 1) return 'ahora';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `hace ${h} h ${m} min` : `hace ${h} h`;
+}
+
+// Un pedido "se atrasa" si lleva ≥3 min sin confirmar, o ≥20 min en cualquier otro estado activo.
+function isLate(status, min) {
+  if (!isActive(status)) return false;
+  return min >= (status === 'pendiente' ? 3 : 20);
+}
+
+// ---- supabase.js ----
+// Cliente mínimo de Supabase sobre fetch (PostgREST + Auth). Sin dependencias.
+const SESSION_KEY = 'burgerfest-admin-session-v1';
+const MARGIN_S = 60;
+
+function createSupabase({ url, key, fetch: fetchFn = (...a) => globalThis.fetch(...a), now = Date.now, storage = null }) {
+  let session = null;
+  try { session = JSON.parse(storage?.getItem(SESSION_KEY) || 'null'); } catch { session = null; }
+
+  const persist = () => {
+    try { session ? storage?.setItem(SESSION_KEY, JSON.stringify(session)) : storage?.removeItem(SESSION_KEY); } catch { /* sin storage */ }
+  };
+
+  async function raw(path, { method = 'GET', body, headers = {}, token = key } = {}) {
+    const res = await fetchFn(url + path, {
+      method,
+      headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await res.text();
+    let data = null;
+    if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+    if (!res.ok) {
+      const msg = (data && (data.message || data.error_description || data.msg || data.error)) || `Error ${res.status}`;
+      throw Object.assign(new Error(msg), { status: res.status });
+    }
+    return data;
+  }
+
+  const toSession = (d) => ({
+    access_token: d.access_token, refresh_token: d.refresh_token, user: d.user,
+    expires_at: Math.floor(now() / 1000) + (d.expires_in || 3600),
+  });
+
+  async function refresh() {
+    try {
+      session = toSession(await raw('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refresh_token } }));
+      persist();
+    } catch (e) { session = null; persist(); throw e; }
+  }
+
+  async function authed(path, opts) {
+    if (session && session.expires_at - now() / 1000 < MARGIN_S) await refresh();
+    return raw(path, { ...opts, token: session ? session.access_token : key });
+  }
+
+  return {
+    getSession: () => session,
+    async signIn(email, password) {
+      try {
+        session = toSession(await raw('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } }));
+      } catch (e) {
+        if (e.status === 400) throw Object.assign(new Error('El correo o la contraseña no son correctos.'), { status: 400 });
+        throw e;
+      }
+      persist();
+      return session;
+    },
+    signOut() { session = null; persist(); },
+    rpc: (name, args) => authed(`/rest/v1/rpc/${name}`, { method: 'POST', body: args }),
+    select: (table, query) => authed(`/rest/v1/${table}?${query}`),
+    update: (table, filter, patch) => authed(`/rest/v1/${table}?${filter}`, { method: 'PATCH', body: patch, headers: { Prefer: 'return=representation' } }),
+  };
+}
+
+// ---- config.js ----
+// La clave "anon" es pública por diseño: la seguridad real está en las reglas (RLS) de schema.sql.
+// NUNCA pongas aquí la clave "service_role".
+const SUPABASE_URL = 'https://uzvxcyqlifhcgdwubsdl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dnhjeXFsaWZoY2dkd3Vic2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0Mjg3MjksImV4cCI6MjExMDAwNDcyOX0.x2Bblg6vfx0k0hMR7lnLrKlsyOGNdRL0s-wBEM2KgnI';
+
+// ---- app.js ----
+
+const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
+const ORDER_KEY = 'burgerfest-order-v1';
+const POLL_MS = 5000;
+const ORDER_TTL_MS = 12 * 60 * 60 * 1000;
 const store = (() => { try { return window.localStorage; } catch { return { getItem() { return null; }, setItem() {} }; } })();
 
 let cart = load(store);
@@ -629,13 +842,14 @@ function renderCart() {
 
   $('countTop').hidden = n === 0;
   $('countTop').textContent = n;
-  $('cartbar').hidden = n === 0;
+  $('openCartBar').hidden = n === 0;
   $('barCount').textContent = n;
   $('barTotal').textContent = formatCOP(tot);
-  document.body.classList.toggle('has-bar', n > 0);
+  $('trackBtn').hidden = !active;
+  $('cartbar').hidden = n === 0 && !active;
+  document.body.classList.toggle('has-bar', n > 0 || !!active);
 
-  $('emptyState').hidden = n !== 0;
-  $('cartContent').hidden = n === 0;
+  applyView(n);
   $('sheetTotal').textContent = formatCOP(tot);
   $('lines').innerHTML = ls.map((l) => `
     <li class="line">
@@ -684,52 +898,134 @@ document.addEventListener('click', (e) => {
 });
 
 const sheet = $('sheet');
-const openCart = () => { render(); if (!sheet.open) sheet.showModal(); };
-$('openCartTop').addEventListener('click', openCart);
+const openCart = () => { view = 'cart'; render(); if (!sheet.open) sheet.showModal(); };
+const openTrack = () => { view = 'track'; render(); if (!sheet.open) sheet.showModal(); };
+$('openCartTop').addEventListener('click', () => (count(cart) === 0 && active ? openTrack() : openCart()));
 $('openCartBar').addEventListener('click', openCart);
+$('trackBtn').addEventListener('click', openTrack);
+$('backFromTrack').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
 $('closeCart').addEventListener('click', () => sheet.close());
 $('backToMenu').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
 sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.close(); });
 $('clearCart').addEventListener('click', () => { update(clear(), 'Pedido vaciado'); });
 
-/* Formulario */
+/* ---------- Vistas de la hoja: carrito o seguimiento ---------- */
+let view = 'cart';
+function applyView(n = count(cart)) {
+  const track = view === 'track' && !!active;
+  $('sheetTitle').textContent = track ? 'Seguimiento' : 'Mi pedido';
+  $('emptyState').hidden = track || n !== 0;
+  $('cartContent').hidden = track || n === 0;
+  $('trackView').hidden = !track;
+  if (track) renderTrack();
+}
+
+/* ---------- Formulario ---------- */
 const form = $('orderForm');
-const typeInputs = form.querySelectorAll('input[name="type"]');
+const tableSel = $('table');
+tableSel.innerHTML = '<option value="">Elige tu mesa</option>' +
+  Array.from({ length: BUSINESS.tables }, (_, i) => `<option value="${i + 1}">Mesa ${i + 1}</option>`).join('');
+
+const FIELDS = { name: 'nameErr', table: 'tableErr', address: 'addressErr', phone: 'phoneErr' };
+function setError(field, msg) {
+  $(FIELDS[field]).textContent = msg || '';
+  if (msg) $(field).setAttribute('aria-invalid', 'true'); else $(field).removeAttribute('aria-invalid');
+}
 function syncType() {
   const dom = form.type.value === 'domicilio';
+  $('tableField').hidden = dom;
   $('addressField').hidden = !dom;
-  if (!dom) { $('addressErr').textContent = ''; $('address').removeAttribute('aria-invalid'); }
+  $('phoneOpt').hidden = dom;
+  for (const f of Object.keys(FIELDS)) setError(f, '');
 }
-typeInputs.forEach((r) => r.addEventListener('change', syncType));
+form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', syncType));
+for (const f of Object.keys(FIELDS)) $(f).addEventListener('input', () => setError(f, ''));
 
-function fieldError(inputId, errId, msg) {
-  $(errId).textContent = msg;
-  if (msg) $(inputId).setAttribute('aria-invalid', 'true'); else $(inputId).removeAttribute('aria-invalid');
-}
-$('name').addEventListener('input', () => fieldError('name', 'nameErr', ''));
-$('address').addEventListener('input', () => fieldError('address', 'addressErr', ''));
-
-form.addEventListener('submit', (e) => {
+let sending = false;
+form.addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (sending) return;
   const ls = lines(cart, PRODUCTS);
   if (!ls.length) return;
   const customer = {
-    name: form.name.value.trim(),
-    type: form.type.value,
-    address: form.address.value.trim(),
-    notes: form.notes.value,
+    name: form.name.value, phone: form.phone.value, type: form.type.value,
+    table: form.table.value, address: form.address.value, notes: form.notes.value,
   };
-  fieldError('name', 'nameErr', customer.name ? '' : 'Escribe tu nombre para el pedido.');
-  fieldError('address', 'addressErr', customer.type === 'domicilio' && !customer.address ? 'Escribe la dirección de entrega.' : '');
-  const firstBad = form.querySelector('[aria-invalid="true"]');
-  if (firstBad) { firstBad.focus(); return; }
+  const errors = validateOrderForm(customer, { tables: BUSINESS.tables });
+  for (const f of Object.keys(FIELDS)) setError(f, errors[f]);
+  const firstBad = Object.keys(FIELDS).find((f) => errors[f] && !$(f).closest('[hidden]'));
+  if (firstBad) { $(firstBad).focus(); return; }
 
-  const url = buildWhatsAppUrl({ business: BUSINESS, lines: ls, total: total(cart, PRODUCTS), customer });
-  // Con 'noopener' el navegador devuelve siempre null, así que no sirve para detectar bloqueos:
-  // se confirma el envío y se deja siempre un enlace por si la ventana no se abrió.
-  window.open(url, '_blank', 'noopener');
-  $('sendStatus').innerHTML = `Abrimos WhatsApp con tu pedido; solo falta pulsar enviar allá. ¿No se abrió? <a href="${esc(url)}" target="_blank" rel="noopener">Abrir WhatsApp</a>`;
+  sending = true;
+  $('sendBtn').disabled = true;
+  $('sendBtn').textContent = 'Enviando…';
+  $('sendStatus').textContent = '';
+  try {
+    const r = await sb.rpc('create_order', buildCreateOrderArgs({ lines: ls, total: total(cart, PRODUCTS), customer }));
+    if (!r || !r.id) throw new Error('Respuesta inválida');
+    setActive({ id: r.id, code: r.code, type: customer.type, table: customer.type === 'mesa' ? Number(customer.table) : null, status: 'pendiente', at: Date.now() });
+    form.notes.value = '';
+    update(clear(), `Pedido ${r.code} enviado`);
+    openTrack();
+  } catch (err) {
+    $('sendStatus').textContent = 'No pudimos enviar tu pedido. Revisa tu conexión e inténtalo de nuevo; tu carrito sigue guardado.';
+  } finally {
+    sending = false;
+    $('sendBtn').disabled = false;
+    $('sendBtn').textContent = 'Enviar pedido';
+  }
 });
+
+/* ---------- Seguimiento del pedido ---------- */
+let active = loadActive();
+let pollTimer = null;
+
+function loadActive() {
+  try {
+    const o = JSON.parse(store.getItem(ORDER_KEY) || 'null');
+    return o && o.id && Date.now() - o.at < ORDER_TTL_MS ? o : null;
+  } catch { return null; }
+}
+function setActive(o) {
+  active = o;
+  try { o ? store.setItem(ORDER_KEY, JSON.stringify(o)) : store.removeItem(ORDER_KEY); } catch { /* sin storage */ }
+  schedulePoll();
+  render();
+}
+
+function renderTrack() {
+  const o = active;
+  const p = progress(o.status, o.type);
+  $('trackCode').textContent = `Pedido #${o.code}`;
+  $('trackMsg').textContent = customerMessage(o.status, o.type);
+  $('trackMsg').dataset.status = o.status;
+  $('trackSteps').innerHTML = p.cancelled ? '' : p.steps.map((s) =>
+    `<li class="${s.state}"${s.state === 'current' ? ' aria-current="step"' : ''}><span class="mark" aria-hidden="true"></span>${esc(s.label)}</li>`).join('');
+  $('trackWhere').textContent = o.type === 'mesa' ? `Mesa ${o.table}` : 'Domicilio';
+  $('trackNote').textContent = isActive(o.status) ? 'Esta pantalla se actualiza sola.' : '';
+  $('newOrder').hidden = isActive(o.status);
+  $('trackBtnText').textContent = `Pedido #${o.code} · ${progressLabel(o)}`;
+}
+const progressLabel = (o) => ({ pendiente: 'Pendiente', confirmado: 'Confirmado', en_cocina: 'En cocina', listo: 'Listo', en_despacho: 'En despacho', entregado: 'Entregado', cancelado: 'Cancelado' }[o.status] || '');
+
+$('newOrder').addEventListener('click', () => { setActive(null); view = 'cart'; sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
+
+async function pollOnce() {
+  if (!active || !isActive(active.status)) return;
+  try {
+    const r = await sb.rpc('get_order_status', { p_id: active.id });
+    if (!r) { setActive(null); return; }
+    if (r.status !== active.status) {
+      setActive({ ...active, status: r.status });
+      $('live').textContent = customerMessage(r.status, active.type);
+    }
+  } catch { /* sin red: se reintenta en el siguiente ciclo */ }
+}
+function schedulePoll() {
+  clearInterval(pollTimer);
+  pollTimer = null;
+  if (active && isActive(active.status)) pollTimer = setInterval(pollOnce, POLL_MS);
+}
 
 /* Categoría activa al hacer scroll */
 function watchCategories() {
@@ -750,6 +1046,8 @@ renderStatic();
 syncType();
 render();
 watchCategories();
+schedulePoll();
+pollOnce();
 
 </script>
 </body>

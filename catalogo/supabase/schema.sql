@@ -14,7 +14,8 @@ create table if not exists public.orders (
   table_number   integer check (table_number between 1 and 99),
   address        text check (char_length(address) <= 200),
   notes          text check (char_length(notes) <= 300),
-  items          jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 50),
+  items          jsonb not null check (jsonb_typeof(items) = 'array' and jsonb_array_length(items) between 1 and 50
+                 and octet_length(items::text) <= 20000),   -- tope de tamaño: evita pedidos gigantes
   total          integer not null check (total > 0),
   status         text not null default 'pendiente'
                  check (status in ('pendiente','confirmado','en_cocina','listo','en_despacho','entregado','cancelado')),

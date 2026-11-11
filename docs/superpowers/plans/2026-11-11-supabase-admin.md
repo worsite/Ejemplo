@@ -4,7 +4,7 @@
 
 **Goal:** Los pedidos del catálogo se guardan en Supabase (con mesa o domicilio), llegan solos a un panel de administración donde se confirman y cambian de estado, y el cliente ve el estado de su pedido en vivo.
 
-**Architecture:** Sitio estático. Cliente `supabase.js` mínimo sobre `fetch` (PostgREST + GoTrue), sin librerías ni CDN, probado con `fetch` inyectado. Lógica pura en `orders.js`. Seguridad en la base: RLS activado; el público (anon) solo puede llamar dos funciones RPC (`create_order`, `get_order_status`); el admin entra con Supabase Auth y la tabla `admins` autoriza. El panel y el cliente se actualizan por sondeo cada 5 s (decisión mía: probable sin websockets y suficiente para "automático").
+**Architecture:** Sitio estático. Cliente `supabase.js` mínimo sobre `fetch` (PostgREST + GoTrue), sin librerías ni CDN, probado con `fetch` inyectado. Lógica pura en `orders.js`. Seguridad en la base: RLS activado; el público (anon) solo puede llamar dos funciones RPC (`create_order`, `get_order_status`); el admin entra con Supabase Auth y la tabla `admins` autoriza. El panel y el cliente se actualizan por sondeo cada 5 s (decisión mía: más fácil de probar y robusto, sin websockets; 5 s es suficiente para sentirse automático).
 
 **Tech Stack:** HTML/CSS/JS puro, `node:test`, Playwright con Supabase simulado vía `page.route`, SQL de Postgres.
 

@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#450A0A">
+<title>Panel de pedidos | Burger Fest</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&family=Lilita+One&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #DC2626; --red-dark: #B91C1C; --gold: #FACC15; --ink: #450A0A; --cream: #FFF7ED; --paper: #FFFFFF;
+  --muted: #6B4741; --green: #15803D;
+  --c-pendiente: #DC2626; --c-confirmado: #1D4ED8; --c-en_cocina: #B45309; --c-listo: #15803D; --c-en_despacho: #6D28D9;
+  --c-entregado: #57534E; --c-cancelado: #78716C;
+  --border: 3px solid var(--ink); --shadow: 4px 4px 0 var(--ink);
+  --font-display: 'Lilita One', Impact, 'Arial Black', sans-serif;
+  --font-body: 'Karla', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; font: 400 1rem/1.45 var(--font-body); color: var(--ink); background: var(--cream); -webkit-text-size-adjust: 100%; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+h1, h2 { font-family: var(--font-display); font-weight: 400; margin: 0; line-height: 1.1; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; box-shadow: 0 0 0 6px var(--gold); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--muted); margin: 0; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 18px; border: var(--border); border-radius: 999px; font-weight: 700; background: var(--paper); transition: transform .12s ease, box-shadow .12s ease; box-shadow: 3px 3px 0 var(--ink); }
+.btn:hover:not(:disabled) { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.btn:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+.btn:disabled { opacity: .6; cursor: progress; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-main { background: var(--gold); flex: 1; font-size: 1.05rem; min-height: 52px; }
+.btn-ghost { background: var(--paper); }
+.btn-danger { background: var(--red-dark); color: #fff; }
+
+/* Login */
+.login { min-height: 100dvh; display: grid; place-items: center; padding: 20px; background: var(--red); }
+.login-card { width: 100%; max-width: 380px; display: grid; gap: 14px; padding: 26px 22px; background: var(--cream); border: var(--border); border-radius: 20px; box-shadow: 6px 6px 0 var(--ink); }
+.login-card h1 { font-size: 2.2rem; }
+.field { display: grid; gap: 6px; }
+label { font-weight: 700; }
+input { width: 100%; min-height: 48px; padding: 10px 14px; background: var(--paper); border: var(--border); border-radius: 14px; }
+.err { margin: 0; min-height: 1.2em; color: var(--red-dark); font-weight: 700; }
+.err:empty { display: none; }
+
+/* Panel */
+.top { position: sticky; top: 0; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; background: var(--ink); color: #fff; border-bottom: var(--border); }
+.top h1 { font-size: 1.5rem; }
+.top-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.top .btn { color: var(--ink); }
+.conn { padding: 4px 12px; border-radius: 999px; background: #BBF7D0; color: #14532D; font-weight: 700; font-size: .85rem; }
+.conn.off { background: #FDE68A; color: #78350F; }
+
+.tabs { display: flex; gap: 8px; padding: 12px 16px 0; }
+.tab { min-height: 44px; padding: 6px 18px; border: var(--border); border-radius: 999px; background: var(--paper); font-weight: 700; }
+.tab.on { background: var(--ink); color: #fff; }
+.n { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; margin-left: 4px; background: var(--gold); color: var(--ink); border-radius: 999px; font-size: .85rem; }
+.tab.on .n { background: var(--gold); }
+.notice { margin: 12px 16px 0; padding: 10px 14px; background: #FEE2E2; border: 2px solid var(--red-dark); border-radius: 12px; font-weight: 700; color: var(--red-dark); }
+.empty-all { margin: 40px 16px; text-align: center; color: var(--muted); font-size: 1.1rem; }
+
+.board { display: grid; gap: 22px; padding: 16px; }
+.col h2 { display: flex; align-items: center; margin-bottom: 10px; font-size: 1.4rem; }
+.none { margin: 0; padding: 18px; text-align: center; color: var(--muted); border: 2px dashed rgba(69, 10, 10, .3); border-radius: 14px; }
+
+.order { position: relative; margin-bottom: 14px; padding: 14px 14px 14px 18px; background: var(--paper); border: var(--border); border-left-width: 10px; border-radius: 16px; box-shadow: var(--shadow); }
+.order header { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.code { font-family: var(--font-display); font-size: 1.7rem; }
+.where { padding: 2px 10px; border: 2px solid var(--ink); border-radius: 999px; font-weight: 700; font-size: .9rem; background: #FEF3C7; }
+.where.domicilio { background: #DDD6FE; }
+.age { margin-left: auto; font-weight: 700; color: var(--muted); }
+.order.late .age { color: var(--red-dark); }
+.order.late { animation: late 1.6s ease-in-out infinite; }
+.s-pendiente { border-left-color: var(--c-pendiente); } .s-confirmado { border-left-color: var(--c-confirmado); }
+.s-en_cocina { border-left-color: var(--c-en_cocina); } .s-listo { border-left-color: var(--c-listo); }
+.s-en_despacho { border-left-color: var(--c-en_despacho); } .s-entregado { border-left-color: var(--c-entregado); opacity: .85; }
+.s-cancelado { border-left-color: var(--c-cancelado); opacity: .75; }
+.order p { margin: 6px 0 0; }
+.who a { color: var(--red-dark); font-weight: 700; margin-left: 6px; }
+.addr { color: var(--muted); }
+.items { list-style: none; margin: 10px 0 0; padding: 10px 12px; background: var(--cream); border-radius: 10px; display: grid; gap: 2px; }
+.notes { padding: 8px 12px; background: #FEF9C3; border: 2px solid #CA8A04; border-radius: 10px; font-weight: 500; }
+.total { display: flex; align-items: center; justify-content: space-between; font-size: 1.25rem; }
+.pill { padding: 3px 12px; border-radius: 999px; font-size: .85rem; font-weight: 700; background: var(--cream); border: 2px solid currentColor; }
+.s-pendiente .pill { color: var(--c-pendiente); } .s-confirmado .pill { color: var(--c-confirmado); } .s-en_cocina .pill { color: var(--c-en_cocina); }
+.s-listo .pill { color: var(--c-listo); } .s-en_despacho .pill { color: var(--c-en_despacho); } .s-entregado .pill, .s-cancelado .pill { color: var(--c-entregado); }
+.actions, .confirm { display: flex; gap: 10px; margin-top: 12px; align-items: center; flex-wrap: wrap; }
+.confirm span { flex: 1 1 100%; font-weight: 700; }
+.flash { animation: flash 1.4s ease-out; }
+
+@keyframes flash { 0% { transform: scale(.96); background: #FEF08A; } 100% { transform: none; background: var(--paper); } }
+@keyframes late { 50% { box-shadow: 4px 4px 0 var(--red); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+@media (min-width: 700px) { .board.cols { grid-template-columns: repeat(2, minmax(0, 1fr)); } .board.hist { max-width: 760px; } }
+@media (min-width: 1200px) { .board.cols { grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; } }
+
+</style>
+</head>
+<body>
+
+<main id="login" class="login" hidden>
+  <form id="loginForm" class="login-card" novalidate>
+    <h1>Panel de pedidos</h1>
+    <p class="muted">Solo para el personal del local.</p>
+    <div class="field">
+      <label for="email">Correo</label>
+      <input id="email" type="email" autocomplete="username" required>
+    </div>
+    <div class="field">
+      <label for="password">Contraseña</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+    </div>
+    <p class="err" id="loginErr" role="alert"></p>
+    <button class="btn btn-red" id="loginBtn" type="submit">Entrar</button>
+  </form>
+</main>
+
+<div id="panel" hidden>
+  <header class="top">
+    <h1 id="panelTitle">Pedidos</h1>
+    <div class="top-actions">
+      <span class="conn" id="conn" role="status">Conectando…</span>
+      <button class="btn btn-ghost" id="soundBtn" type="button" aria-pressed="true">Sonido: sí</button>
+      <button class="btn btn-ghost" id="logoutBtn" type="button">Salir</button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Vista">
+    <button type="button" class="tab on" data-view="activos" aria-pressed="true">Activos <span class="n" id="nActivos">0</span></button>
+    <button type="button" class="tab" data-view="historial" aria-pressed="false">Historial</button>
+  </nav>
+
+  <p class="notice" id="notice" role="alert" hidden></p>
+
+  <main id="board" class="board"></main>
+  <p class="empty-all" id="emptyAll" hidden>Todavía no hay pedidos. Cuando llegue uno, suena y aparece aquí.</p>
+</div>
+
+<div class="sr-only" id="live" aria-live="polite"></div>
+<script type="module">
+// ---- config.js ----
+// La clave "anon" es pública por diseño: la seguridad real está en las reglas (RLS) de schema.sql.
+// NUNCA pongas aquí la clave "service_role".
+const SUPABASE_URL = 'https://uzvxcyqlifhcgdwubsdl.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV6dnhjeXFsaWZoY2dkd3Vic2RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0Mjg3MjksImV4cCI6MjExMDAwNDcyOX0.x2Bblg6vfx0k0hMR7lnLrKlsyOGNdRL0s-wBEM2KgnI';
+
+// ---- menu.js ----
+// DATOS DE EJEMPLO: cambia el nombre, el horario, el número de mesas y los productos.
+const BUSINESS = {
+  name: 'Burger Fest',
+  tables: 12, // mesas disponibles para elegir al pedir
+  currency: 'COP',
+  hours: 'Todos los días · 11:00 a.m. – 11:00 p.m.',
+  deliveryNote: 'Domicilio en 30–45 min',
+};
+
+const CATEGORIES = [
+  { id: 'hamburguesas', label: 'Hamburguesas' },
+  { id: 'perros', label: 'Perros y Sándwiches' },
+  { id: 'snacks', label: 'Papas y Snacks' },
+  { id: 'pizza', label: 'Pizza' },
+  { id: 'bebidas', label: 'Bebidas y Postres' },
+];
+
+const PRODUCTS = [
+  { id: 'burger-clasica', category: 'hamburguesas', name: 'Clásica', desc: 'Carne de res 150 g, queso cheddar, lechuga, tomate y salsa de la casa.', price: 18900, badge: 'Favorita', art: 'burger' },
+  { id: 'burger-doble', category: 'hamburguesas', name: 'Doble Queso', desc: 'Doble carne, doble cheddar, cebolla caramelizada y pepinillos.', price: 26900, badge: 'Nueva', art: 'doble' },
+  { id: 'burger-pollo', category: 'hamburguesas', name: 'Crispy de Pollo', desc: 'Pechuga apanada crujiente, lechuga y mayonesa de ajo.', price: 21900, art: 'pollo' },
+  { id: 'perro-especial', category: 'perros', name: 'Perro Especial', desc: 'Salchicha americana, papa ripio, queso gratinado y salsas.', price: 15900, art: 'hotdog' },
+  { id: 'sandwich-club', category: 'perros', name: 'Sándwich Club', desc: 'Pan tostado, pollo, tocineta, queso, lechuga y tomate.', price: 19900, art: 'sandwich' },
+  { id: 'papas-grandes', category: 'snacks', name: 'Papas Grandes', desc: 'Papas fritas doradas con sal y salsa a elegir.', price: 8500, badge: 'Para compartir', art: 'papas' },
+  { id: 'nuggets', category: 'snacks', name: 'Nuggets x10', desc: 'Diez nuggets de pollo crocantes con dip de BBQ.', price: 14900, art: 'nuggets' },
+  { id: 'aros', category: 'snacks', name: 'Aros de Cebolla', desc: 'Aros apanados y fritos, con salsa ranch.', price: 9900, art: 'aros' },
+  { id: 'pizza-pepperoni', category: 'pizza', name: 'Pizza Pepperoni', desc: 'Personal de 8 porciones con mozzarella y pepperoni.', price: 32900, badge: 'Popular', art: 'pizza' },
+  { id: 'pizza-hawaiana', category: 'pizza', name: 'Pizza Hawaiana', desc: 'Jamón, piña y mozzarella sobre salsa de tomate.', price: 31900, art: 'pizza2' },
+  { id: 'gaseosa', category: 'bebidas', name: 'Gaseosa 400 ml', desc: 'Bien fría. Cola, limón o naranja.', price: 4500, art: 'soda' },
+  { id: 'malteada', category: 'bebidas', name: 'Malteada', desc: 'Vainilla, fresa o chocolate con crema batida.', price: 12900, art: 'malteada' },
+  { id: 'helado', category: 'bebidas', name: 'Copa de Helado', desc: 'Tres bolas, salsa de chocolate y galleta.', price: 9900, art: 'helado' },
+];
+
+// ---- cart.js ----
+// Lógica pura del carrito: sin DOM, probada con node:test.
+const STORAGE_KEY = 'burgerfest-cart-v1';
+
+function formatCOP(n) {
+  return '$' + Math.round(n).toLocaleString('es-CO', { useGrouping: true, maximumFractionDigits: 0 })
+    .replace(/[\s,]/g, '.');
+}
+
+function addItem(cart, id) {
+  return { ...cart, [id]: (cart[id] || 0) + 1 };
+}
+
+function setQty(cart, id, qty) {
+  const next = { ...cart };
+  if (!Number.isFinite(qty) || qty <= 0) delete next[id];
+  else next[id] = Math.floor(qty);
+  return next;
+}
+
+function clear() { return {}; }
+
+function lines(cart, products) {
+  const out = [];
+  for (const product of products) {
+    const qty = cart[product.id];
+    if (qty > 0) out.push({ product, qty, subtotal: product.price * qty });
+  }
+  return out;
+}
+
+function total(cart, products) {
+  return lines(cart, products).reduce((s, l) => s + l.subtotal, 0);
+}
+
+function count(cart) {
+  return Object.values(cart).reduce((s, q) => s + q, 0);
+}
+
+function load(storage) {
+  try {
+    const raw = JSON.parse(storage.getItem(STORAGE_KEY));
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [id, q] of Object.entries(raw)) if (Number.isInteger(q) && q > 0) out[id] = q;
+    return out;
+  } catch { return {}; }
+}
+
+function save(storage, cart) {
+  try { storage.setItem(STORAGE_KEY, JSON.stringify(cart)); } catch { /* storage bloqueado o lleno */ }
+}
+
+// ---- orders.js ----
+// Lógica pura de pedidos: estados, validación y armado del RPC. Sin DOM ni red.
+const STATUS = {
+  pendiente: { label: 'Pendiente', customer: 'Recibimos tu pedido. Estamos esperando que el local lo confirme.' },
+  confirmado: { label: 'Confirmado', customer: '¡Pedido confirmado! En breve empezamos a prepararlo.' },
+  en_cocina: { label: 'En cocina', customer: 'Estamos preparando tu pedido.' },
+  listo: { label: 'Listo', customer: '¡Tu pedido está listo!' },
+  en_despacho: { label: 'En despacho', customer: 'Tu pedido va en camino.' },
+  entregado: { label: 'Entregado', customer: '¡Buen provecho! Gracias por pedir con nosotros.' },
+  cancelado: { label: 'Cancelado', customer: 'Tu pedido fue cancelado. Escríbenos si tienes dudas.' },
+};
+
+const NEXT_LABEL = {
+  confirmado: 'Confirmar pedido', en_cocina: 'Pasar a cocina', listo: 'Marcar listo',
+  en_despacho: 'Despachar', entregado: 'Marcar entregado',
+};
+
+function flow(type) {
+  return type === 'domicilio'
+    ? ['pendiente', 'confirmado', 'en_cocina', 'en_despacho', 'entregado']
+    : ['pendiente', 'confirmado', 'en_cocina', 'listo', 'entregado'];
+}
+
+function nextStatus(status, type) {
+  const f = flow(type);
+  const i = f.indexOf(status);
+  return i === -1 || i === f.length - 1 ? null : f[i + 1];
+}
+
+const nextLabel = (status) => NEXT_LABEL[status] || '';
+const isActive = (status) => status !== 'entregado' && status !== 'cancelado';
+
+function customerMessage(status, type) {
+  if (status === 'listo' && type === 'mesa') return '¡Tu pedido está listo y va para tu mesa!';
+  return (STATUS[status] || STATUS.pendiente).customer;
+}
+
+function progress(status, type) {
+  const f = flow(type);
+  const cur = f.indexOf(status);
+  return {
+    cancelled: status === 'cancelado',
+    steps: f.map((id, i) => ({
+      id, label: STATUS[id].label,
+      state: status === 'cancelado' ? 'todo' : i < cur ? 'done' : i === cur ? 'current' : 'todo',
+    })),
+  };
+}
+
+const digits = (s) => String(s || '').replace(/\D/g, '');
+
+function validateOrderForm(form, { tables }) {
+  const e = {};
+  if (!String(form.name || '').trim()) e.name = 'Escribe tu nombre para el pedido.';
+  if (form.type !== 'mesa' && form.type !== 'domicilio') {
+    e.type = 'Elige si es para mesa o domicilio.';
+    return e;
+  }
+  const phone = String(form.phone || '').trim();
+  if (form.type === 'mesa') {
+    const t = Number(form.table);
+    if (!Number.isInteger(t) || t < 1 || t > tables) e.table = `Elige tu mesa (1 a ${tables}).`;
+    if (phone && digits(phone).length < 7) e.phone = 'Revisa el teléfono: parece incompleto.';
+  } else {
+    if (String(form.address || '').trim().length < 5) e.address = 'Escribe la dirección de entrega.';
+    if (digits(phone).length < 7) e.phone = 'Escribe un teléfono para contactarte.';
+  }
+  return e;
+}
+
+function buildCreateOrderArgs({ lines, total, customer }) {
+  const dom = customer.type === 'domicilio';
+  const phone = String(customer.phone || '').trim();
+  return {
+    p_name: String(customer.name).trim(),
+    p_phone: phone || null,
+    p_type: customer.type,
+    p_table: dom ? null : Number(customer.table),
+    p_address: dom ? String(customer.address).trim() : null,
+    p_notes: String(customer.notes || '').trim().slice(0, 300) || null,
+    p_items: lines.map((l) => ({ id: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
+    p_total: total,
+  };
+}
+
+function minutesAgo(iso, nowMs) {
+  return Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 60000));
+}
+
+function elapsedLabel(min) {
+  if (min < 1) return 'ahora';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `hace ${h} h ${m} min` : `hace ${h} h`;
+}
+
+// Un pedido "se atrasa" si lleva ≥3 min sin confirmar, o ≥20 min en cualquier otro estado activo.
+function isLate(status, min) {
+  if (!isActive(status)) return false;
+  return min >= (status === 'pendiente' ? 3 : 20);
+}
+
+// ---- util.js ----
+const $ = (id) => document.getElementById(id);
+const esc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---- supabase.js ----
+// Cliente mínimo de Supabase sobre fetch (PostgREST + Auth). Sin dependencias.
+const SESSION_KEY = 'burgerfest-admin-session-v1';
+const MARGIN_S = 60;
+
+function createSupabase({ url, key, fetch: fetchFn = (...a) => globalThis.fetch(...a), now = Date.now, storage = null }) {
+  let session = null;
+  try { session = JSON.parse(storage?.getItem(SESSION_KEY) || 'null'); } catch { session = null; }
+
+  const persist = () => {
+    try { session ? storage?.setItem(SESSION_KEY, JSON.stringify(session)) : storage?.removeItem(SESSION_KEY); } catch { /* sin storage */ }
+  };
+
+  async function raw(path, { method = 'GET', body, headers = {}, token = key } = {}) {
+    const res = await fetchFn(url + path, {
+      method,
+      headers: { apikey: key, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...headers },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await res.text();
+    let data = null;
+    if (text) { try { data = JSON.parse(text); } catch { data = text; } }
+    if (!res.ok) {
+      const msg = (data && (data.message || data.error_description || data.msg || data.error)) || `Error ${res.status}`;
+      throw Object.assign(new Error(msg), { status: res.status });
+    }
+    return data;
+  }
+
+  const toSession = (d) => ({
+    access_token: d.access_token, refresh_token: d.refresh_token, user: d.user,
+    expires_at: Math.floor(now() / 1000) + (d.expires_in || 3600),
+  });
+
+  async function refresh() {
+    try {
+      session = toSession(await raw('/auth/v1/token?grant_type=refresh_token', { method: 'POST', body: { refresh_token: session.refresh_token } }));
+      persist();
+    } catch (e) { session = null; persist(); throw e; }
+  }
+
+  async function authed(path, opts) {
+    if (session && session.expires_at - now() / 1000 < MARGIN_S) await refresh();
+    return raw(path, { ...opts, token: session ? session.access_token : key });
+  }
+
+  return {
+    getSession: () => session,
+    async signIn(email, password) {
+      try {
+        session = toSession(await raw('/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } }));
+      } catch (e) {
+        if (e.status === 400) throw Object.assign(new Error('El correo o la contraseña no son correctos.'), { status: 400 });
+        throw e;
+      }
+      persist();
+      return session;
+    },
+    signOut() { session = null; persist(); },
+    rpc: (name, args) => authed(`/rest/v1/rpc/${name}`, { method: 'POST', body: args }),
+    select: (table, query) => authed(`/rest/v1/${table}?${query}`),
+    update: (table, filter, patch) => authed(`/rest/v1/${table}?${filter}`, { method: 'PATCH', body: patch, headers: { Prefer: 'return=representation' } }),
+  };
+}
+
+// ---- admin.js ----
+
+const POLL_MS = 5000;
+const store = (() => { try { return window.localStorage; } catch { return null; } })();
+const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY, storage: store });
+
+const COLUMNS = [
+  { id: 'pendiente', title: 'Nuevos', statuses: ['pendiente'] },
+  { id: 'confirmado', title: 'Confirmados', statuses: ['confirmado'] },
+  { id: 'en_cocina', title: 'En cocina', statuses: ['en_cocina'] },
+  { id: 'salida', title: 'Listos y en despacho', statuses: ['listo', 'en_despacho'] },
+];
+
+let orders = [];
+let known = null;               // ids ya vistos; null = aún no cargó la primera vez
+let view = 'activos';
+let confirmCancel = null;       // id del pedido que espera confirmación de cancelación
+let busy = new Set();           // ids con un cambio de estado en curso
+let lastSig = '';
+let timer = null;
+let soundOn = (() => { try { return store?.getItem('burgerfest-sound') !== 'off'; } catch { return true; } })();
+let audio = null;
+let flashIds = new Set();
+
+/* ---------- Sonido ---------- */
+function unlockAudio() {
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume?.(); } catch { audio = null; }
+}
+function beep() {
+  if (!soundOn || !audio) return;
+  try {
+    [[880, 0], [660, 0.18]].forEach(([freq, at]) => {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = freq; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, audio.currentTime + at);
+      g.gain.exponentialRampToValueAtTime(0.3, audio.currentTime + at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + at + 0.16);
+      o.connect(g); g.connect(audio.destination);
+      o.start(audio.currentTime + at); o.stop(audio.currentTime + at + 0.17);
+    });
+  } catch { /* sin audio */ }
+}
+function renderSound() {
+  $('soundBtn').textContent = `Sonido: ${soundOn ? 'sí' : 'no'}`;
+  $('soundBtn').setAttribute('aria-pressed', String(soundOn));
+}
+
+/* ---------- Pantallas ---------- */
+function showLogin(msg = '') {
+  clearInterval(timer); timer = null;
+  $('panel').hidden = true;
+  $('login').hidden = false;
+  $('loginErr').textContent = msg;
+  document.title = 'Panel de pedidos | ' + BUSINESS.name;
+}
+function showPanel() {
+  $('login').hidden = true;
+  $('panel').hidden = false;
+  $('panelTitle').textContent = `Pedidos · ${BUSINESS.name}`;
+  renderSound();
+  known = null; lastSig = ''; orders = [];
+  poll();
+  clearInterval(timer);
+  timer = setInterval(poll, POLL_MS);
+}
+function notice(msg) {
+  $('notice').textContent = msg || '';
+  $('notice').hidden = !msg;
+}
+function setConn(ok) {
+  $('conn').textContent = ok ? 'En vivo' : 'Sin conexión…';
+  $('conn').classList.toggle('off', !ok);
+}
+
+/* ---------- Datos ---------- */
+async function poll() {
+  try {
+    const rows = await sb.select('orders', 'select=*&order=created_at.desc&limit=200');
+    setConn(true);
+    notice('');
+    apply(Array.isArray(rows) ? rows : []);
+  } catch (e) {
+    if (e.status === 401 || e.status === 403 || !sb.getSession()) { sb.signOut(); showLogin('Tu sesión venció. Entra de nuevo.'); return; }
+    setConn(false);
+  }
+}
+
+function apply(rows) {
+  const fresh = rows.filter((o) => o.status === 'pendiente' && known && !known.has(o.id));
+  orders = rows;
+  if (fresh.length) {
+    beep();
+    flashIds = new Set(fresh.map((o) => o.id));
+    $('live').textContent = fresh.length === 1 ? `Nuevo pedido #${fresh[0].code}` : `${fresh.length} pedidos nuevos`;
+  }
+  known = new Set(rows.map((o) => o.id));
+  render();
+}
+
+async function setStatus(id, status) {
+  if (busy.has(id)) return;
+  busy.add(id); confirmCancel = null; render();
+  try {
+    const rows = await sb.update('orders', `id=eq.${encodeURIComponent(id)}`, { status });
+    if (!Array.isArray(rows) || !rows.length) throw new Error('sin permiso');
+    orders = orders.map((o) => (o.id === id ? { ...o, ...rows[0] } : o));
+    notice('');
+  } catch (e) {
+    if (e.status === 401) { sb.signOut(); showLogin('Tu sesión venció. Entra de nuevo.'); busy.delete(id); return; }
+    notice('No se pudo cambiar el estado del pedido. Revisa la conexión e inténtalo de nuevo.');
+  } finally { busy.delete(id); }
+  render();
+}
+
+/* ---------- Render ---------- */
+function itemsHtml(o) {
+  return (Array.isArray(o.items) ? o.items : []).map((i) =>
+    `<li><b>${esc(i.qty)}×</b> ${esc(i.name)}</li>`).join('');
+}
+
+function cardHtml(o, now) {
+  const min = minutesAgo(o.created_at, now);
+  const next = nextStatus(o.status, o.order_type);
+  const active = isActive(o.status);
+  const where = o.order_type === 'mesa' ? `Mesa ${esc(o.table_number)}` : 'Domicilio';
+  const late = isLate(o.status, min);
+  const working = busy.has(o.id);
+  const phone = o.customer_phone ? `<a href="tel:${esc(String(o.customer_phone).replace(/[^\d+]/g, ''))}">${esc(o.customer_phone)}</a>` : '';
+  let actions = '';
+  if (active && confirmCancel === o.id) {
+    actions = `<div class="confirm"><span>¿Cancelar el pedido #${esc(o.code)}?</span>
+      <button type="button" class="btn btn-danger" data-act="cancel-yes" data-id="${esc(o.id)}">Sí, cancelar</button>
+      <button type="button" class="btn btn-ghost" data-act="cancel-no" data-id="${esc(o.id)}">No</button></div>`;
+  } else if (active) {
+    actions = `<div class="actions">
+      ${next ? `<button type="button" class="btn btn-main" data-act="next" data-id="${esc(o.id)}" data-to="${next}" ${working ? 'disabled' : ''}>${working ? 'Guardando…' : esc(nextLabel(next))}</button>` : ''}
+      <button type="button" class="btn btn-ghost" data-act="cancel" data-id="${esc(o.id)}" ${working ? 'disabled' : ''}>Cancelar</button></div>`;
+  }
+  return `<article class="order s-${o.status}${late ? ' late' : ''}${flashIds.has(o.id) ? ' flash' : ''}" data-order="${esc(o.id)}" aria-label="Pedido ${esc(o.code)}">
+    <header>
+      <span class="code">#${esc(o.code)}</span>
+      <span class="where ${o.order_type}">${where}</span>
+      <span class="age">${esc(elapsedLabel(min))}</span>
+    </header>
+    <p class="who"><b>${esc(o.customer_name)}</b> ${phone}</p>
+    ${o.address ? `<p class="addr">${esc(o.address)}</p>` : ''}
+    <ul class="items">${itemsHtml(o)}</ul>
+    ${o.notes ? `<p class="notes"><b>Notas:</b> ${esc(o.notes)}</p>` : ''}
+    <p class="total"><span class="pill">${esc(STATUS[o.status]?.label || o.status)}</span><b>${formatCOP(o.total)}</b></p>
+    ${actions}
+  </article>`;
+}
+
+function render(force = false) {
+  const now = Date.now();
+  const list = orders.filter((o) => (view === 'activos' ? isActive(o.status) : !isActive(o.status)));
+  const pend = orders.filter((o) => o.status === 'pendiente').length;
+  const nActive = orders.filter((o) => isActive(o.status)).length;
+  const sig = JSON.stringify([view, confirmCancel, [...busy], [...flashIds], list.map((o) => [o.id, o.status]), Math.floor(now / 60000)]);
+  $('nActivos').textContent = nActive;
+  document.title = (pend ? `(${pend}) ` : '') + 'Panel de pedidos | ' + BUSINESS.name;
+  if (!force && sig === lastSig) return;
+  lastSig = sig;
+
+  const board = $('board');
+  board.className = 'board ' + (view === 'activos' ? 'cols' : 'hist');
+  if (view === 'activos') {
+    board.innerHTML = COLUMNS.map((c) => {
+      const items = list.filter((o) => c.statuses.includes(o.status)).sort((a, b) => a.created_at.localeCompare(b.created_at));
+      return `<section class="col col-${c.id}" aria-label="${esc(c.title)}">
+        <h2>${esc(c.title)} <span class="n">${items.length}</span></h2>
+        ${items.map((o) => cardHtml(o, now)).join('') || '<p class="none">Nada por aquí</p>'}
+      </section>`;
+    }).join('');
+  } else {
+    board.innerHTML = `<section class="col" aria-label="Historial"><h2>Entregados y cancelados <span class="n">${list.length}</span></h2>
+      ${list.slice(0, 60).map((o) => cardHtml(o, now)).join('') || '<p class="none">Aún no hay pedidos cerrados</p>'}</section>`;
+  }
+  $('emptyAll').hidden = orders.length > 0;
+  flashIds = new Set();
+}
+
+/* ---------- Eventos ---------- */
+$('board').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]');
+  if (!b) return;
+  const id = b.dataset.id;
+  switch (b.dataset.act) {
+    case 'next': setStatus(id, b.dataset.to); break;
+    case 'cancel': confirmCancel = id; render(true); break;
+    case 'cancel-no': confirmCancel = null; render(true); break;
+    case 'cancel-yes': setStatus(id, 'cancelado'); break;
+  }
+});
+
+document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => {
+  view = t.dataset.view;
+  document.querySelectorAll('.tab').forEach((x) => { x.classList.toggle('on', x === t); x.setAttribute('aria-pressed', String(x === t)); });
+  render(true);
+}));
+
+$('soundBtn').addEventListener('click', () => {
+  soundOn = !soundOn;
+  try { store?.setItem('burgerfest-sound', soundOn ? 'on' : 'off'); } catch { /* sin storage */ }
+  unlockAudio(); renderSound(); if (soundOn) beep();
+});
+
+$('logoutBtn').addEventListener('click', () => { sb.signOut(); showLogin(''); });
+
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = $('email').value.trim(), password = $('password').value;
+  if (!email || !password) { $('loginErr').textContent = 'Escribe tu correo y tu contraseña.'; return; }
+  $('loginBtn').disabled = true; $('loginBtn').textContent = 'Entrando…'; $('loginErr').textContent = '';
+  unlockAudio();
+  try {
+    await sb.signIn(email, password);
+    const adm = await sb.select('admins', 'select=user_id');
+    if (!Array.isArray(adm) || !adm.length) {
+      sb.signOut();
+      throw Object.assign(new Error('Tu usuario existe, pero aún no está autorizado como administrador (paso 3 de supabase/README.md).'), { status: 403 });
+    }
+    $('password').value = '';
+    showPanel();
+  } catch (err) {
+    $('loginErr').textContent = err.status ? err.message : 'No pudimos conectar. Revisa tu conexión e inténtalo de nuevo.';
+  } finally { $('loginBtn').disabled = false; $('loginBtn').textContent = 'Entrar'; }
+});
+
+/* Inicio: si hay sesión guardada, entra directo */
+if (sb.getSession()) showPanel(); else showLogin();
+
+</script>
+</body>
+</html>
