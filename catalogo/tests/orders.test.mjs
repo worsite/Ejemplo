@@ -89,3 +89,20 @@ test('minutesAgo redondea hacia abajo y no baja de 0', () => {
   assert.equal(minutesAgo('2026-11-11T12:00:00Z', now), 10);
   assert.equal(minutesAgo('2026-11-11T12:11:00Z', now), 0);
 });
+
+import { elapsedLabel, isLate } from '../orders.js';
+
+test('elapsedLabel: ahora, minutos y horas', () => {
+  assert.equal(elapsedLabel(0), 'ahora');
+  assert.equal(elapsedLabel(7), 'hace 7 min');
+  assert.equal(elapsedLabel(60), 'hace 1 h');
+  assert.equal(elapsedLabel(125), 'hace 2 h 5 min');
+});
+
+test('isLate: pendiente tarda ≥3 min; los demás activos ≥20; los cerrados nunca', () => {
+  assert.equal(isLate('pendiente', 2), false);
+  assert.equal(isLate('pendiente', 3), true);
+  assert.equal(isLate('en_cocina', 19), false);
+  assert.equal(isLate('en_cocina', 20), true);
+  assert.equal(isLate('entregado', 500), false);
+});

@@ -85,3 +85,16 @@ export function buildCreateOrderArgs({ lines, total, customer }) {
 export function minutesAgo(iso, nowMs) {
   return Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 60000));
 }
+
+export function elapsedLabel(min) {
+  if (min < 1) return 'ahora';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? `hace ${h} h ${m} min` : `hace ${h} h`;
+}
+
+// Un pedido "se atrasa" si lleva ≥3 min sin confirmar, o ≥20 min en cualquier otro estado activo.
+export function isLate(status, min) {
+  if (!isActive(status)) return false;
+  return min >= (status === 'pendiente' ? 3 : 20);
+}
