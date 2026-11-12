@@ -67,7 +67,8 @@ export function validateOrderForm(form, { tables }) {
   return e;
 }
 
-export function buildCreateOrderArgs({ lines, total, customer }) {
+// El cliente NO manda precios ni nombres: solo qué plato, cuántos y el detalle. El servidor los busca en el menú de hoy.
+export function buildCreateOrderArgs({ resolved, total, customer }) {
   const dom = customer.type === 'domicilio';
   const phone = String(customer.phone || '').trim();
   return {
@@ -77,7 +78,7 @@ export function buildCreateOrderArgs({ lines, total, customer }) {
     p_table: dom ? null : Number(customer.table),
     p_address: dom ? String(customer.address).trim() : null,
     p_notes: String(customer.notes || '').trim().slice(0, 300) || null,
-    p_items: lines.map((l) => ({ id: l.product.id, name: l.product.name, qty: l.qty, price: l.product.price })),
+    p_items: resolved.map((l) => ({ id: l.itemKey, qty: l.qty, detail: l.detail || '' })),
     p_total: total,
   };
 }

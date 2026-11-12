@@ -65,22 +65,24 @@ test('validateOrderForm rechaza tipo desconocido', () => {
   assert.ok(validateOrderForm({ ...ok, type: 'recoger' }, { tables: 12 }).type);
 });
 
-test('buildCreateOrderArgs arma el RPC y limpia campos según el tipo', () => {
-  const lines = [{ product: { id: 'a', name: 'Clásica', price: 18900 }, qty: 2, subtotal: 37800 }];
-  const mesa = buildCreateOrderArgs({ lines, total: 37800, customer: { ...ok, name: '  Ana ', address: 'ignorada', notes: ' sin cebolla ' } });
+const resolved = [{ key: 's1.i1|Sin arroz', itemKey: 's1.i1', qty: 2, detail: 'Sin arroz', name: 'Gallina guisada', price: 25000, subtotal: 50000 },
+                  { key: 's2.i1|', itemKey: 's2.i1', qty: 1, detail: '', name: 'Limonada natural', price: 8000, subtotal: 8000 }];
+
+test('buildCreateOrderArgs manda solo id, cantidad y detalle (el precio lo pone el servidor)', () => {
+  const mesa = buildCreateOrderArgs({ resolved, total: 58000, customer: { ...ok, name: '  Ana ', address: 'ignorada', notes: ' sin cebolla ' } });
   assert.deepEqual(mesa, {
     p_name: 'Ana', p_phone: null, p_type: 'mesa', p_table: 5, p_address: null, p_notes: 'sin cebolla',
-    p_items: [{ id: 'a', name: 'Clásica', qty: 2, price: 18900 }], p_total: 37800,
+    p_items: [{ id: 's1.i1', qty: 2, detail: 'Sin arroz' }, { id: 's2.i1', qty: 1, detail: '' }], p_total: 58000,
   });
-  const dom = buildCreateOrderArgs({ lines, total: 37800, customer: { ...ok, type: 'domicilio', table: '5', address: ' Cra 7 ', phone: '300 111 2233' } });
+  assert.equal(JSON.stringify(mesa).includes('price'), false);
+  const dom = buildCreateOrderArgs({ resolved, total: 58000, customer: { ...ok, type: 'domicilio', table: '5', address: ' Cra 7 ', phone: '300 111 2233' } });
   assert.equal(dom.p_table, null);
   assert.equal(dom.p_address, 'Cra 7');
   assert.equal(dom.p_phone, '300 111 2233');
 });
 
 test('buildCreateOrderArgs recorta notas largas a 300 caracteres', () => {
-  const lines = [{ product: { id: 'a', name: 'X', price: 1 }, qty: 1, subtotal: 1 }];
-  const a = buildCreateOrderArgs({ lines, total: 1, customer: { ...ok, notes: 'x'.repeat(500) } });
+  const a = buildCreateOrderArgs({ resolved, total: 1, customer: { ...ok, notes: 'x'.repeat(500) } });
   assert.equal(a.p_notes.length, 300);
 });
 

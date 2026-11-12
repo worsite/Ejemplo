@@ -1,32 +1,85 @@
-// DATOS DE EJEMPLO: cambia el nombre, el horario, el número de mesas y los productos.
+// Datos del negocio y lógica pura del menú del día (sin DOM ni red).
+// Los menús de cada día viven en Supabase y se editan desde el panel.
 export const BUSINESS = {
-  name: 'Burger Fest',
-  tables: 12, // mesas disponibles para elegir al pedir
-  currency: 'COP',
-  hours: 'Todos los días · 11:00 a.m. – 11:00 p.m.',
-  deliveryNote: 'Domicilio en 30–45 min',
+  name: 'Mamá Inés',
+  tagline: 'Restaurante · Est. 2012',
+  tables: 12,                       // mesas disponibles para elegir al pedir
+  phone: '3013496764',              // datos tomados de los folletos
+  phoneLabel: '301 349 6764',
+  address: 'Cra 32 # 10-47B · Colseguros',
+  instagram: '@Restmamaines',
 };
 
-export const CATEGORIES = [
-  { id: 'hamburguesas', label: 'Hamburguesas' },
-  { id: 'perros', label: 'Perros y Sándwiches' },
-  { id: 'snacks', label: 'Papas y Snacks' },
-  { id: 'pizza', label: 'Pizza' },
-  { id: 'bebidas', label: 'Bebidas y Postres' },
-];
+export const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado']; // = Date.getDay()
+export const MAX_SECTIONS = 12;
+export const MAX_ITEMS = 30;
+export const MAX_DETAIL = 200;
 
-export const PRODUCTS = [
-  { id: 'burger-clasica', category: 'hamburguesas', name: 'Clásica', desc: 'Carne de res 150 g, queso cheddar, lechuga, tomate y salsa de la casa.', price: 18900, badge: 'Favorita', art: 'burger' },
-  { id: 'burger-doble', category: 'hamburguesas', name: 'Doble Queso', desc: 'Doble carne, doble cheddar, cebolla caramelizada y pepinillos.', price: 26900, badge: 'Nueva', art: 'doble' },
-  { id: 'burger-pollo', category: 'hamburguesas', name: 'Crispy de Pollo', desc: 'Pechuga apanada crujiente, lechuga y mayonesa de ajo.', price: 21900, art: 'pollo' },
-  { id: 'perro-especial', category: 'perros', name: 'Perro Especial', desc: 'Salchicha americana, papa ripio, queso gratinado y salsas.', price: 15900, art: 'hotdog' },
-  { id: 'sandwich-club', category: 'perros', name: 'Sándwich Club', desc: 'Pan tostado, pollo, tocineta, queso, lechuga y tomate.', price: 19900, art: 'sandwich' },
-  { id: 'papas-grandes', category: 'snacks', name: 'Papas Grandes', desc: 'Papas fritas doradas con sal y salsa a elegir.', price: 8500, badge: 'Para compartir', art: 'papas' },
-  { id: 'nuggets', category: 'snacks', name: 'Nuggets x10', desc: 'Diez nuggets de pollo crocantes con dip de BBQ.', price: 14900, art: 'nuggets' },
-  { id: 'aros', category: 'snacks', name: 'Aros de Cebolla', desc: 'Aros apanados y fritos, con salsa ranch.', price: 9900, art: 'aros' },
-  { id: 'pizza-pepperoni', category: 'pizza', name: 'Pizza Pepperoni', desc: 'Personal de 8 porciones con mozzarella y pepperoni.', price: 32900, badge: 'Popular', art: 'pizza' },
-  { id: 'pizza-hawaiana', category: 'pizza', name: 'Pizza Hawaiana', desc: 'Jamón, piña y mozzarella sobre salsa de tomate.', price: 31900, art: 'pizza2' },
-  { id: 'gaseosa', category: 'bebidas', name: 'Gaseosa 400 ml', desc: 'Bien fría. Cola, limón o naranja.', price: 4500, art: 'soda' },
-  { id: 'malteada', category: 'bebidas', name: 'Malteada', desc: 'Vainilla, fresa o chocolate con crema batida.', price: 12900, art: 'malteada' },
-  { id: 'helado', category: 'bebidas', name: 'Copa de Helado', desc: 'Tres bolas, salsa de chocolate y galleta.', price: 9900, art: 'helado' },
-];
+export const emptyMenu = () => ({ sections: [] });
+
+export function newId() {
+  const abc = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const r = globalThis.crypto?.getRandomValues ? globalThis.crypto.getRandomValues(new Uint8Array(6)) : Array.from({ length: 6 }, () => Math.floor(Math.random() * 256));
+  return Array.from(r, (n) => abc[n % abc.length]).join('');
+}
+
+export const priceOf = (section, item) => item?.price ?? section?.price ?? null;
+
+export function partsOf(section, item) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of [...(section?.includes || []), ...(item?.parts || [])]) {
+    const p = String(raw || '').trim();
+    if (p && !seen.has(p.toLowerCase())) { seen.add(p.toLowerCase()); out.push(p); }
+  }
+  return out;
+}
+
+export function flattenMenu(menu) {
+  const out = [];
+  for (const section of menu?.sections || []) {
+    for (const item of section.items || []) {
+      out.push({ key: `${section.id}.${item.id}`, section, item, price: priceOf(section, item), parts: partsOf(section, item) });
+    }
+  }
+  return out;
+}
+
+export const findItem = (menu, key) => flattenMenu(menu).find((f) => f.key === key) || null;
+
+export function buildDetail({ removed = [], choice = '', choiceLabel = '', note = '' } = {}) {
+  const segs = [];
+  if (removed.length) segs.push(removed.map((p) => `sin ${String(p).toLowerCase()}`).join(', ').replace(/^s/, 'S'));
+  if (choice) segs.push(`${choiceLabel || 'Opción'}: ${choice}`);
+  if (String(note).trim()) segs.push(String(note).trim());
+  return segs.join(' · ').slice(0, MAX_DETAIL);
+}
+
+const isPrice = (p) => Number.isInteger(p) && p > 0;
+
+// Devuelve la lista de problemas (vacía = menú válido). Espeja las reglas de la base de datos.
+export function validateMenu(menu) {
+  const errs = [];
+  if (!menu || !Array.isArray(menu.sections)) return ['El menú no es válido.'];
+  if (menu.sections.length > MAX_SECTIONS) errs.push(`Máximo ${MAX_SECTIONS} secciones por menú.`);
+  const secIds = new Set();
+  for (const s of menu.sections) {
+    const label = String(s.title || '').trim() || '(sin título)';
+    if (!String(s.title || '').trim()) errs.push('Una sección no tiene título.');
+    if (secIds.has(s.id)) errs.push(`La sección "${label}" tiene un código repetido.`);
+    secIds.add(s.id);
+    if (s.price != null && !isPrice(s.price)) errs.push(`El precio de la sección "${label}" no es válido.`);
+    const items = s.items || [];
+    if (items.length > MAX_ITEMS) errs.push(`La sección "${label}" tiene más de ${MAX_ITEMS} platos.`);
+    const itemIds = new Set();
+    for (const it of items) {
+      const name = String(it.name || '').trim();
+      if (!name) errs.push(`Hay un plato sin nombre en "${label}".`);
+      if (itemIds.has(it.id)) errs.push(`"${name || label}" tiene un código repetido.`);
+      itemIds.add(it.id);
+      if (it.price != null && !isPrice(it.price)) errs.push(`El precio de "${name}" no es válido.`);
+      else if (name && priceOf(s, it) == null) errs.push(`"${name}" no tiene precio (ponle uno o ponle precio a la sección).`);
+    }
+  }
+  return errs;
+}
