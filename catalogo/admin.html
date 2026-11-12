@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#450A0A">
-<title>Panel de pedidos | Burger Fest</title>
+<meta name="theme-color" content="#3F2024">
+<link rel="icon" href="assets/emblem.png">
+<title>Panel de pedidos | Mamá Inés</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&family=Lilita+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700;800&family=Playfair+Display:wght@800;900&family=Yellowtail&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="admin.css">
 </head>
 <body>
@@ -24,7 +25,7 @@
 
 <div id="panel" hidden>
   <header class="top">
-    <h1 id="panelTitle">Pedidos</h1>
+    <h1 id="panelTitle"><img src="assets/emblem-light.png" alt="" width="30" height="40"><span>Pedidos</span></h1>
     <div class="top-actions">
       <span class="conn" id="conn" role="status">Conectando…</span>
       <button class="btn btn-ghost" id="soundBtn" type="button" aria-pressed="true">Sonido: sí</button>
@@ -34,12 +35,14 @@
   <nav class="tabs" aria-label="Vista">
     <button type="button" class="tab on" data-view="activos" aria-pressed="true">Activos <span class="n" id="nActivos">0</span></button>
     <button type="button" class="tab" data-view="historial" aria-pressed="false">Historial</button>
+    <button type="button" class="tab" data-view="menu" aria-pressed="false">Menú de la semana</button>
   </nav>
 
   <p class="notice" id="notice" role="alert" hidden></p>
 
   <main id="board" class="board"></main>
   <p class="empty-all" id="emptyAll" hidden>Todavía no hay pedidos. Cuando llegue uno, suena y aparece aquí.</p>
+  <section id="menuView" class="menuview" aria-label="Menú de la semana" hidden></section>
 </div>
 
 <div class="sr-only" id="live" aria-live="polite"></div>

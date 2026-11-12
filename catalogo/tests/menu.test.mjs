@@ -81,3 +81,59 @@ test('validateMenu explica cada problema', () => {
   m = clone(); m.sections[0].items[1].id = 'i1';
   assert.match(validateMenu(m).join(' '), /repet/i);
 });
+
+import { parseList, parsePrice, moveItem, normalizeMenu, cloneMenu, blankSection, blankItem } from '../menu.js';
+
+test('parseList separa por comas, recorta y quita vacíos', () => {
+  assert.deepEqual(parseList('Arroz, ensalada ,, Maduro'), ['Arroz', 'ensalada', 'Maduro']);
+  assert.deepEqual(parseList(''), []);
+  assert.deepEqual(parseList(null), []);
+  assert.deepEqual(parseList('  ,  '), []);
+});
+
+test('parsePrice acepta puntos, símbolo y espacios; lo demás es null', () => {
+  assert.equal(parsePrice('25.000'), 25000);
+  assert.equal(parsePrice('$ 11.000'), 11000);
+  assert.equal(parsePrice(' 8000 '), 8000);
+  assert.equal(parsePrice(''), null);
+  assert.equal(parsePrice('abc'), null);
+  assert.equal(parsePrice('0'), null);
+  assert.equal(parsePrice(null), null);
+});
+
+test('moveItem intercambia con el vecino sin mutar y respeta los bordes', () => {
+  const a = ['x', 'y', 'z'];
+  assert.deepEqual(moveItem(a, 1, -1), ['y', 'x', 'z']);
+  assert.deepEqual(moveItem(a, 1, 1), ['x', 'z', 'y']);
+  assert.deepEqual(moveItem(a, 0, -1), ['x', 'y', 'z']);
+  assert.deepEqual(moveItem(a, 2, 1), ['x', 'y', 'z']);
+  assert.deepEqual(a, ['x', 'y', 'z']);
+});
+
+test('cloneMenu es una copia profunda', () => {
+  const c = cloneMenu(MENU);
+  c.sections[0].title = 'otro';
+  assert.equal(MENU.sections[0].title, 'Sancocho de gallina');
+  assert.deepEqual(cloneMenu(null), { sections: [] });
+});
+
+test('blankSection y blankItem traen ids nuevos y estructura mínima', () => {
+  const s = blankSection();
+  assert.match(s.id, /^[a-z0-9]{6}$/);
+  assert.deepEqual(s.items, []);
+  assert.equal(s.price, null);
+  const i = blankItem();
+  assert.match(i.id, /^[a-z0-9]{6}$/);
+  assert.equal(i.art, 'plato');
+});
+
+test('normalizeMenu recorta textos, quita campos vacíos y deja precios como número o null', () => {
+  const n = normalizeMenu({ sections: [{
+    id: 's1', title: '  Carnes ', note: '  ', price: '22000', includes: [' Sopa ', ''],
+    items: [{ id: 'i1', name: ' Res asada ', desc: '', price: '', parts: [' Arroz ', ''], choices: [], choiceLabel: ' ', art: '' }],
+  }] });
+  assert.deepEqual(n, { sections: [{
+    id: 's1', title: 'Carnes', price: 22000, includes: ['Sopa'],
+    items: [{ id: 'i1', name: 'Res asada', parts: ['Arroz'], art: 'plato' }],
+  }] });
+});

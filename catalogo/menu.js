@@ -83,3 +83,52 @@ export function validateMenu(menu) {
   }
   return errs;
 }
+
+/* ---------- Ayudas del editor del panel ---------- */
+export const parseList = (s) => String(s ?? '').split(',').map((x) => x.trim()).filter(Boolean);
+
+export function parsePrice(s) {
+  const n = Number(String(s ?? '').replace(/\D/g, ''));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+export function moveItem(arr, i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= arr.length || i < 0 || i >= arr.length) return arr;
+  const out = [...arr];
+  [out[i], out[j]] = [out[j], out[i]];
+  return out;
+}
+
+export const cloneMenu = (menu) => (menu && Array.isArray(menu.sections) ? JSON.parse(JSON.stringify(menu)) : emptyMenu());
+export const blankItem = () => ({ id: newId(), name: '', art: 'plato' });
+export const blankSection = () => ({ id: newId(), title: '', price: null, items: [] });
+
+// Deja el menú listo para guardar: recorta textos, quita campos vacíos y normaliza los precios.
+export function normalizeMenu(menu) {
+  const txt = (v) => String(v ?? '').trim();
+  const list = (a) => (Array.isArray(a) ? a.map(txt).filter(Boolean) : []);
+  return {
+    sections: (menu?.sections || []).map((s) => {
+      const out = { id: s.id, title: txt(s.title) };
+      if (txt(s.note)) out.note = txt(s.note);
+      const price = parsePrice(s.price);
+      if (price) out.price = price;
+      if (list(s.includes).length) out.includes = list(s.includes);
+      out.items = (s.items || []).map((it) => {
+        const o = { id: it.id, name: txt(it.name) };
+        if (txt(it.desc)) o.desc = txt(it.desc);
+        const p = parsePrice(it.price);
+        if (p) o.price = p;
+        if (list(it.parts).length) o.parts = list(it.parts);
+        if (list(it.choices).length) {
+          o.choices = list(it.choices);
+          if (txt(it.choiceLabel)) o.choiceLabel = txt(it.choiceLabel);
+        }
+        o.art = txt(it.art) || 'plato';
+        return o;
+      });
+      return out;
+    }),
+  };
+}

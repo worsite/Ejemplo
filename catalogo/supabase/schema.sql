@@ -1,5 +1,5 @@
 -- =====================================================================
---  Burger Fest · pedidos + panel administrativo
+--  Mamá Inés · menú del día, pedidos y panel administrativo
 --  Pégalo COMPLETO en Supabase → SQL Editor → Run. Se puede ejecutar
 --  más de una vez sin romper nada.
 -- =====================================================================

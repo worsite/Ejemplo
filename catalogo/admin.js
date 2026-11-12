@@ -1,6 +1,7 @@
 import { createSupabase } from './supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY, ADMIN_KEY } from './config.js';
 import { BUSINESS } from './menu.js';
+import { createMenuEditor } from './menu-editor.js';
 import { formatCOP } from './cart.js';
 import { STATUS, nextStatus, nextLabel, isActive, minutesAgo, elapsedLabel, isLate } from './orders.js';
 import { $, esc } from './util.js';
@@ -24,7 +25,7 @@ let confirmCancel = null;       // id del pedido que espera confirmación de can
 let busy = new Set();           // ids con un cambio de estado en curso
 let lastSig = '';
 let timer = null;
-let soundOn = (() => { try { return store?.getItem('burgerfest-sound') !== 'off'; } catch { return true; } })();
+let soundOn = (() => { try { return store?.getItem('mamaines-sound') !== 'off'; } catch { return true; } })();
 let audio = null;
 let flashIds = new Set();
 
@@ -63,7 +64,7 @@ const KEY_REJECTED = 'La clave del panel no es válida. Revisa que ADMIN_KEY en 
 function showPanel() {
   $('locked').hidden = true;
   $('panel').hidden = false;
-  $('panelTitle').textContent = `Pedidos · ${BUSINESS.name}`;
+  $('panelTitle').querySelector('span').textContent = `Pedidos · ${BUSINESS.name}`;
   renderSound();
   known = null; lastSig = ''; orders = [];
   poll();
@@ -122,7 +123,7 @@ async function setStatus(id, status) {
 /* ---------- Render ---------- */
 function itemsHtml(o) {
   return (Array.isArray(o.items) ? o.items : []).map((i) =>
-    `<li><b>${esc(i.qty)}×</b> ${esc(i.name)}</li>`).join('');
+    `<li><b>${esc(i.qty)}×</b> ${esc(i.name)}${i.detail ? `<span class="item-detail">${esc(i.detail)}</span>` : ''}</li>`).join('');
 }
 
 function cardHtml(o, now) {
@@ -166,6 +167,7 @@ function render(force = false) {
   const sig = JSON.stringify([view, confirmCancel, [...busy], [...flashIds], list.map((o) => [o.id, o.status]), Math.floor(now / 60000)]);
   $('nActivos').textContent = nActive;
   document.title = (pend ? `(${pend}) ` : '') + 'Panel de pedidos | ' + BUSINESS.name;
+  if (view === 'menu') return;                 // mientras se edita el menú no se redibuja el tablero
   if (!force && sig === lastSig) return;
   lastSig = sig;
 
@@ -183,7 +185,7 @@ function render(force = false) {
     board.innerHTML = `<section class="col" aria-label="Historial"><h2>Entregados y cancelados <span class="n">${list.length}</span></h2>
       ${list.slice(0, 60).map((o) => cardHtml(o, now)).join('') || '<p class="none">Aún no hay pedidos cerrados</p>'}</section>`;
   }
-  $('emptyAll').hidden = orders.length > 0;
+  $('emptyAll').hidden = orders.length > 0 || view === 'menu';
   flashIds = new Set();
 }
 
@@ -200,15 +202,25 @@ $('board').addEventListener('click', (e) => {
   }
 });
 
+const menuEditor = createMenuEditor({
+  root: $('menuView'),
+  rpc: (name, args) => sb.rpc(name, args),
+  getKey: () => adminKey,
+  onForbidden: () => showLocked(KEY_REJECTED),
+});
+
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => {
   view = t.dataset.view;
   document.querySelectorAll('.tab').forEach((x) => { x.classList.toggle('on', x === t); x.setAttribute('aria-pressed', String(x === t)); });
-  render(true);
+  const isMenu = view === 'menu';
+  $('menuView').hidden = !isMenu;
+  $('board').hidden = isMenu;
+  if (isMenu) { $('emptyAll').hidden = true; menuEditor.show(); } else render(true);
 }));
 
 $('soundBtn').addEventListener('click', () => {
   soundOn = !soundOn;
-  try { store?.setItem('burgerfest-sound', soundOn ? 'on' : 'off'); } catch { /* sin storage */ }
+  try { store?.setItem('mamaines-sound', soundOn ? 'on' : 'off'); } catch { /* sin storage */ }
   unlockAudio(); renderSound(); if (soundOn) beep();
 });
 
