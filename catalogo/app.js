@@ -1,87 +1,195 @@
-import { BUSINESS, CATEGORIES, PRODUCTS } from './menu.js';
-import { artSvg, HERO_ART } from './art.js';
-import { formatCOP, addItem, setQty, clear, lines, total, count, load, save } from './cart.js';
+import { BUSINESS, DAYS, findItem, buildDetail, priceOf } from './menu.js';
+import { artSvg } from './art.js';
+import { formatCOP, addLine, setQty, clear, resolve, total, count, load, save } from './cart.js';
 import { createSupabase } from './supabase.js';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 import { isActive, customerMessage, progress, validateOrderForm, buildCreateOrderArgs } from './orders.js';
 import { $, esc } from './util.js';
 
 const sb = createSupabase({ url: SUPABASE_URL, key: SUPABASE_ANON_KEY });
-const ORDER_KEY = 'burgerfest-order-v1';
+const ORDER_KEY = 'mamaines-order-v1';
 const POLL_MS = 5000;
+const MENU_POLL_MS = 60000;
 const ORDER_TTL_MS = 12 * 60 * 60 * 1000;
-const store = (() => { try { return window.localStorage; } catch { return { getItem() { return null; }, setItem() {} }; } })();
+const store = (() => { try { return window.localStorage; } catch { return { getItem() { return null; }, setItem() {}, removeItem() {} }; } })();
 
 let cart = load(store);
-const tones = ['#FFE08A', '#FFB4A2', '#FFD6A5', '#BDE7C6', '#FFC4D6'];
+let menus = {};            // { '0': {sections}, … } tal como los guarda el panel
+let today = new Date().getDay();
+let viewDay = null;        // día que se está mirando
+let menusState = 'loading'; // loading | ok | error
 
-/* ---------- Render estático ---------- */
+const todayMenu = () => menus[String(today)] || null;
+
+/* ---------- Datos del negocio ---------- */
 function renderStatic() {
-  document.title = `${BUSINESS.name} | Pide tu comida rápida`;
-  $('brandName').textContent = BUSINESS.name;
-  $('footName').textContent = BUSINESS.name;
-  $('chipHours').textContent = BUSINESS.hours;
-  $('chipDelivery').textContent = BUSINESS.deliveryNote;
-  $('heroArt').innerHTML = artSvg(HERO_ART);
-
-  $('cats').innerHTML = CATEGORIES.map((c) =>
-    `<a href="#cat-${c.id}" data-cat="${c.id}">${esc(c.label)}</a>`).join('');
-
-  $('menu').innerHTML = CATEGORIES.map((c, i) => `
-    <section class="cat" id="cat-${c.id}" aria-labelledby="h-${c.id}">
-      <h2 id="h-${c.id}">${esc(c.label)}</h2>
-      <div class="grid">
-        ${PRODUCTS.filter((p) => p.category === c.id).map((p) => card(p, tones[i % tones.length])).join('')}
-      </div>
-    </section>`).join('');
+  $('contactPhone').textContent = BUSINESS.phoneLabel;
+  $('contactPhone').href = `tel:+57${BUSINESS.phone}`;
+  $('contactAddress').textContent = BUSINESS.address;
+  $('contactInsta').textContent = BUSINESS.instagram;
 }
 
-function card(p, tone) {
-  return `
-  <article class="card" data-id="${p.id}">
-    <div class="card-art" style="--tone:${tone}">
-      ${p.badge ? `<span class="badge">${esc(p.badge)}</span>` : ''}
-      ${artSvg(p.art)}
-    </div>
-    <div class="card-body">
-      <h3>${esc(p.name)}</h3>
-      <p class="desc">${esc(p.desc)}</p>
-      <div class="card-foot">
-        <span class="price">${formatCOP(p.price)}</span>
-        <div class="ctl" data-ctl="${p.id}"></div>
-      </div>
-    </div>
-  </article>`;
+/* ---------- Menú ---------- */
+function starSvg(price) {
+  const pts = Array.from({ length: 28 }, (_, i) => {
+    const a = (Math.PI * 2 * i) / 28 - Math.PI / 2;
+    const r = i % 2 ? 38 : 48;
+    return `${(50 + r * Math.cos(a)).toFixed(1)},${(50 + r * Math.sin(a)).toFixed(1)}`;
+  }).join(' ');
+  return `<span class="star"><svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="${pts}" fill="#FFD668"/></svg><b>${formatCOP(price)}</b></span>`;
 }
 
-/* ---------- Controles dinámicos ---------- */
-function ctlHtml(p) {
-  const q = cart[p.id] || 0;
-  if (!q) {
-    return `<button class="btn btn-red add" type="button" data-act="add" data-id="${p.id}" aria-label="Agregar ${esc(p.name)} al pedido">Agregar</button>`;
+function dishHtml(section, item, canOrder) {
+  const key = `${section.id}.${item.id}`;
+  const price = priceOf(section, item);
+  const own = item.price != null;
+  return `<li class="dish">
+    <div class="dish-art" aria-hidden="true">${artSvg(item.art)}</div>
+    <div class="dish-main">
+      <h3>${esc(item.name)}</h3>
+      ${item.desc ? `<p class="desc">${esc(item.desc)}</p>` : ''}
+      ${own ? `<p class="own-price">${formatCOP(item.price)}</p>` : ''}
+    </div>
+    ${canOrder && price != null ? `<button type="button" class="btn btn-wine pick" data-act="pick" data-key="${esc(key)}" aria-label="Pedir ${esc(item.name)}">Pedir</button>` : ''}
+  </li>`;
+}
+
+function sectionHtml(s, canOrder) {
+  const inc = (s.includes || []).filter((x) => String(x).trim());
+  return `<section class="msec" aria-label="${esc(s.title)}">
+    <div class="msec-head">
+      <div>
+        <h2>${esc(s.title)}</h2>
+        ${s.note ? `<p class="note">${esc(s.note)}</p>` : ''}
+        ${inc.length ? `<p class="incl">Incluye: ${esc(inc.join(', '))}</p>` : ''}
+      </div>
+      ${s.price != null ? starSvg(s.price) : ''}
+    </div>
+    <ul class="dishes">${(s.items || []).map((it) => dishHtml(s, it, canOrder)).join('')}</ul>
+  </section>`;
+}
+
+function renderMenu() {
+  const body = $('menuBody');
+  if (menusState === 'loading') {
+    $('mdDay').textContent = '';
+    $('dayTabs').innerHTML = '';
+    $('dayBanner').hidden = true;
+    body.innerHTML = '<p class="state">Cargando el menú…</p>';
+    return;
   }
-  return stepper(p, q);
+  if (menusState === 'error') {
+    $('dayBanner').hidden = true;
+    body.innerHTML = '<p class="state">No pudimos cargar el menú. Revisa tu conexión.</p><button type="button" class="btn btn-wine" data-act="retry">Intentar de nuevo</button>';
+    return;
+  }
+  const day = viewDay ?? today;
+  const isToday = day === today;
+  $('mdDay').textContent = DAYS[day];
+  $('dayTabs').innerHTML = DAYS.map((d, i) =>
+    `<button type="button" data-act="day" data-day="${i}" aria-pressed="${i === day}"${i === today ? ' class="is-today"' : ''}>${d.slice(0, 3)}${i === today ? '<span class="sr-only"> (hoy)</span>' : ''}</button>`).join('');
+
+  const menu = menus[String(day)];
+  const has = menu && (menu.sections || []).some((s) => (s.items || []).length);
+  const banner = $('dayBanner');
+  if (!isToday) {
+    banner.hidden = false;
+    banner.innerHTML = `Estás viendo el menú del <b>${esc(DAYS[day])}</b>. Solo se puede pedir el menú de hoy. <button type="button" class="link-btn" data-act="day" data-day="${today}">Ver el de hoy</button>`;
+  } else banner.hidden = true;
+
+  if (!has) {
+    body.innerHTML = isToday
+      ? '<p class="state">Hoy todavía no hay menú del día publicado. ¡Vuelve en un ratico!</p>'
+      : '<p class="state">Este día todavía no tiene menú programado.</p>';
+    return;
+  }
+  body.innerHTML = menu.sections.map((s) => sectionHtml(s, isToday)).join('');
 }
 
-function stepper(p, q) {
-  return `<div class="step" role="group" aria-label="Cantidad de ${esc(p.name)}">
-    <button type="button" data-act="dec" data-id="${p.id}" aria-label="Quitar uno de ${esc(p.name)}">−</button>
+async function loadMenus() {
+  try {
+    const r = await sb.rpc('get_daily_menus');
+    if (!r || typeof r.menus !== 'object') throw new Error('Respuesta inválida');
+    menus = r.menus;
+    if (Number.isInteger(r.today)) {
+      if (viewDay === null || viewDay === today) viewDay = r.today;   // si pasó la medianoche, sigue al día nuevo
+      today = r.today;
+    }
+    menusState = 'ok';
+    const kept = cart.filter((l) => resolve([l], todayMenu()).length);
+    if (kept.length !== cart.length) { cart = kept; save(store, cart); }
+  } catch {
+    if (menusState !== 'ok') menusState = 'error';
+  }
+  renderMenu();
+  renderCart();
+}
+
+/* ---------- Personalizar un plato ---------- */
+const dishDialog = $('dishDialog');
+let dishCtx = null;   // { f, qty }
+
+function openDish(key) {
+  const f = findItem(todayMenu(), key);
+  if (!f || f.price == null) return;
+  dishCtx = { f, qty: 1 };
+  $('dishTitle').textContent = 'Arma tu plato';
+  $('dishName').textContent = f.item.name;
+  $('dishPrice').textContent = formatCOP(f.price);
+  $('dishArt').innerHTML = artSvg(f.item.art);
+  $('dishNote').value = '';
+  $('choiceErr').textContent = '';
+  $('partsField').hidden = f.parts.length === 0;
+  $('partsList').innerHTML = f.parts.map((p, i) =>
+    `<label class="check"><input type="checkbox" name="part" value="${esc(p)}" id="part${i}" checked><span>${esc(p)}</span></label>`).join('');
+  const choices = f.item.choices || [];
+  $('choiceField').hidden = choices.length === 0;
+  $('choiceLegend').textContent = f.item.choiceLabel || 'Elige uno';
+  $('choiceList').innerHTML = choices.map((c, i) =>
+    `<label class="check radio"><input type="radio" name="choice" value="${esc(c)}" id="choice${i}"><span>${esc(c)}</span></label>`).join('');
+  syncDish();
+  if (!dishDialog.open) dishDialog.showModal();
+}
+
+function syncDish() {
+  $('dishQty').textContent = dishCtx.qty;
+  $('dishAdd').textContent = `Agregar · ${formatCOP(dishCtx.f.price * dishCtx.qty)}`;
+}
+
+$('dishMinus').addEventListener('click', () => { if (dishCtx.qty > 1) { dishCtx.qty -= 1; syncDish(); } });
+$('dishPlus').addEventListener('click', () => { if (dishCtx.qty < 20) { dishCtx.qty += 1; syncDish(); } });
+$('closeDish').addEventListener('click', () => dishDialog.close());
+dishDialog.addEventListener('click', (e) => { if (e.target === dishDialog) dishDialog.close(); });
+
+$('dishForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const { f, qty } = dishCtx;
+  const choices = f.item.choices || [];
+  const choice = $('dishForm').querySelector('input[name="choice"]:checked')?.value || '';
+  if (choices.length && !choice) {
+    $('choiceErr').textContent = `Elige una opción (${f.item.choiceLabel || 'Elige uno'}).`;
+    $('choiceList').querySelector('input').focus();
+    return;
+  }
+  const removed = [...$('dishForm').querySelectorAll('input[name="part"]')].filter((c) => !c.checked).map((c) => c.value);
+  const detail = buildDetail({ removed, choice, choiceLabel: f.item.choiceLabel, note: $('dishNote').value });
+  dishDialog.close();
+  update(addLine(cart, { itemKey: f.key, detail, qty }), `${f.item.name} agregado al pedido`);
+});
+
+/* ---------- Carrito ---------- */
+function stepper(key, name, q) {
+  return `<div class="step" role="group" aria-label="Cantidad de ${esc(name)}">
+    <button type="button" data-act="dec" data-key="${esc(key)}" aria-label="Quitar uno de ${esc(name)}">−</button>
     <output aria-live="polite">${q}</output>
-    <button type="button" data-act="inc" data-id="${p.id}" aria-label="Agregar uno más de ${esc(p.name)}">+</button>
+    <button type="button" data-act="inc" data-key="${esc(key)}" aria-label="Agregar uno más de ${esc(name)}">+</button>
   </div>`;
 }
 
-function renderControls() {
-  for (const p of PRODUCTS) {
-    const el = document.querySelector(`[data-ctl="${p.id}"]`);
-    if (el) el.innerHTML = ctlHtml(p);
-  }
-}
-
 function renderCart() {
-  const ls = lines(cart, PRODUCTS);
-  const n = count(Object.fromEntries(ls.map((l) => [l.product.id, l.qty])));
-  const tot = total(cart, PRODUCTS);
+  const resolved = resolve(cart, todayMenu());
+  const n = count(resolved);
+  const tot = total(cart, todayMenu());
 
   $('countTop').hidden = n === 0;
   $('countTop').textContent = n;
@@ -94,66 +202,66 @@ function renderCart() {
 
   applyView(n);
   $('sheetTotal').textContent = formatCOP(tot);
-  $('lines').innerHTML = ls.map((l) => `
+  $('lines').innerHTML = resolved.map((l) => `
     <li class="line">
-      <div class="line-art" aria-hidden="true">${artSvg(l.product.art)}</div>
+      <div class="dish-art small" aria-hidden="true">${artSvg(l.art)}</div>
       <div class="line-info">
-        <strong>${esc(l.product.name)}</strong>
-        <span>${formatCOP(l.product.price)} c/u</span>
+        <strong>${esc(l.name)}</strong>
+        ${l.detail ? `<span class="detail">${esc(l.detail)}</span>` : ''}
+        <span>${formatCOP(l.price)} c/u</span>
       </div>
       <div class="line-side">
-        ${stepper(l.product, l.qty)}
+        ${stepper(l.key, l.name, l.qty)}
         <span class="line-sub">${formatCOP(l.subtotal)}</span>
       </div>
     </li>`).join('');
 }
 
-function render() {
-  renderControls();
-  renderCart();
-}
-
 function update(next, message) {
   cart = next;
   save(store, cart);
-  render();
+  renderCart();
   if (message) $('live').textContent = message;
 }
 
-/* ---------- Eventos ---------- */
+/* ---------- Eventos de la página ---------- */
 document.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-act]');
   if (!btn) return;
-  const id = btn.dataset.id;
-  const p = PRODUCTS.find((x) => x.id === id);
-  if (!p) return;
-  const q = cart[id] || 0;
-  if (btn.dataset.act === 'add' || btn.dataset.act === 'inc') {
-    update(addItem(cart, id), `${p.name} agregado. Cantidad: ${q + 1}`);
-  } else if (btn.dataset.act === 'dec') {
-    update(setQty(cart, id, q - 1), q - 1 > 0 ? `${p.name}: ${q - 1}` : `${p.name} quitado del pedido`);
+  switch (btn.dataset.act) {
+    case 'pick': openDish(btn.dataset.key); break;
+    case 'day':
+      viewDay = Number(btn.dataset.day);
+      renderMenu();
+      break;
+    case 'retry': menusState = 'loading'; renderMenu(); loadMenus(); break;
+    case 'inc': case 'dec': {
+      const line = cart.find((l) => l.key === btn.dataset.key);
+      if (!line) return;
+      const q = line.qty + (btn.dataset.act === 'inc' ? 1 : -1);
+      update(setQty(cart, line.key, q), q > 0 ? `Cantidad: ${q}` : 'Plato quitado del pedido');
+      const again = [...$('lines').querySelectorAll(`[data-act="${btn.dataset.act}"]`)].find((b) => b.dataset.key === line.key);
+      if (again) again.focus({ preventScroll: true });
+      break;
+    }
   }
-  // Tras re-render, devolver el foco al mismo control para no perder la posición con teclado.
-  const act = btn.dataset.act === 'add' ? 'inc' : btn.dataset.act;
-  const root = btn.closest('dialog') || document;
-  const target = root.querySelector(`[data-act="${act}"][data-id="${id}"]`);
-  if (target) target.focus({ preventScroll: true });
 });
 
 const sheet = $('sheet');
-const openCart = () => { view = 'cart'; render(); if (!sheet.open) sheet.showModal(); };
-const openTrack = () => { view = 'track'; render(); if (!sheet.open) sheet.showModal(); };
+let view = 'cart';
+const openCart = () => { view = 'cart'; renderCart(); if (!sheet.open) sheet.showModal(); };
+const openTrack = () => { view = 'track'; renderCart(); if (!sheet.open) sheet.showModal(); };
 $('openCartTop').addEventListener('click', () => (count(cart) === 0 && active ? openTrack() : openCart()));
 $('openCartBar').addEventListener('click', openCart);
 $('trackBtn').addEventListener('click', openTrack);
-$('backFromTrack').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
 $('closeCart').addEventListener('click', () => sheet.close());
-$('backToMenu').addEventListener('click', () => { sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
+const toMenu = () => { sheet.close(); $('menuBody').scrollIntoView({ behavior: 'smooth' }); };
+$('backToMenu').addEventListener('click', toMenu);
+$('backFromTrack').addEventListener('click', toMenu);
 sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.close(); });
-$('clearCart').addEventListener('click', () => { update(clear(), 'Pedido vaciado'); });
+$('clearCart').addEventListener('click', () => update(clear(), 'Pedido vaciado'));
 
-/* ---------- Vistas de la hoja: carrito o seguimiento ---------- */
-let view = 'cart';
+/* ---------- Vistas de la hoja ---------- */
 function applyView(n = count(cart)) {
   const track = view === 'track' && !!active;
   $('sheetTitle').textContent = track ? 'Seguimiento' : 'Mi pedido';
@@ -184,12 +292,13 @@ function syncType() {
 form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', syncType));
 for (const f of Object.keys(FIELDS)) $(f).addEventListener('input', () => setError(f, ''));
 
+const MENU_ERR = /menú|plato|precios|Hoy no hay/i;
 let sending = false;
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (sending) return;
-  const ls = lines(cart, PRODUCTS);
-  if (!ls.length) return;
+  const resolved = resolve(cart, todayMenu());
+  if (!resolved.length) return;
   const customer = {
     name: form.name.value, phone: form.phone.value, type: form.type.value,
     table: form.table.value, address: form.address.value, notes: form.notes.value,
@@ -204,14 +313,19 @@ form.addEventListener('submit', async (e) => {
   $('sendBtn').textContent = 'Enviando…';
   $('sendStatus').textContent = '';
   try {
-    const r = await sb.rpc('create_order', buildCreateOrderArgs({ lines: ls, total: total(cart, PRODUCTS), customer }));
+    const r = await sb.rpc('create_order', buildCreateOrderArgs({ resolved, total: total(cart, todayMenu()), customer }));
     if (!r || !r.id) throw new Error('Respuesta inválida');
     setActive({ id: r.id, code: r.code, type: customer.type, table: customer.type === 'mesa' ? Number(customer.table) : null, status: 'pendiente', at: Date.now() });
     form.notes.value = '';
     update(clear(), `Pedido ${r.code} enviado`);
     openTrack();
   } catch (err) {
-    $('sendStatus').textContent = 'No pudimos enviar tu pedido. Revisa tu conexión e inténtalo de nuevo; tu carrito sigue guardado.';
+    if (err.status === 400 && MENU_ERR.test(err.message)) {
+      $('sendStatus').textContent = `${err.message}. Tu carrito sigue guardado.`;
+      loadMenus();
+    } else {
+      $('sendStatus').textContent = 'No pudimos enviar tu pedido. Revisa tu conexión e inténtalo de nuevo; tu carrito sigue guardado.';
+    }
   } finally {
     sending = false;
     $('sendBtn').disabled = false;
@@ -233,8 +347,10 @@ function setActive(o) {
   active = o;
   try { o ? store.setItem(ORDER_KEY, JSON.stringify(o)) : store.removeItem(ORDER_KEY); } catch { /* sin storage */ }
   schedulePoll();
-  render();
+  renderCart();
 }
+
+const STATUS_LABEL = { pendiente: 'Pendiente', confirmado: 'Confirmado', en_cocina: 'En cocina', listo: 'Listo', en_despacho: 'En despacho', entregado: 'Entregado', cancelado: 'Cancelado' };
 
 function renderTrack() {
   const o = active;
@@ -247,11 +363,10 @@ function renderTrack() {
   $('trackWhere').textContent = o.type === 'mesa' ? `Mesa ${o.table}` : 'Domicilio';
   $('trackNote').textContent = isActive(o.status) ? 'Esta pantalla se actualiza sola.' : '';
   $('newOrder').hidden = isActive(o.status);
-  $('trackBtnText').textContent = `Pedido #${o.code} · ${progressLabel(o)}`;
+  $('trackBtnText').textContent = `Pedido #${o.code} · ${STATUS_LABEL[o.status] || ''}`;
 }
-const progressLabel = (o) => ({ pendiente: 'Pendiente', confirmado: 'Confirmado', en_cocina: 'En cocina', listo: 'Listo', en_despacho: 'En despacho', entregado: 'Entregado', cancelado: 'Cancelado' }[o.status] || '');
 
-$('newOrder').addEventListener('click', () => { setActive(null); view = 'cart'; sheet.close(); $('menu').scrollIntoView({ behavior: 'smooth' }); });
+$('newOrder').addEventListener('click', () => { setActive(null); view = 'cart'; toMenu(); });
 
 async function pollOnce() {
   if (!active || !isActive(active.status)) return;
@@ -270,24 +385,13 @@ function schedulePoll() {
   if (active && isActive(active.status)) pollTimer = setInterval(pollOnce, POLL_MS);
 }
 
-/* Categoría activa al hacer scroll */
-function watchCategories() {
-  const links = [...document.querySelectorAll('#cats a')];
-  if (!('IntersectionObserver' in window)) return;
-  const io = new IntersectionObserver((entries) => {
-    for (const en of entries) {
-      if (!en.isIntersecting) continue;
-      links.forEach((a) => a.classList.toggle('on', a.dataset.cat === en.target.id.replace('cat-', '')));
-      const on = links.find((a) => a.classList.contains('on'));
-      if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
-    }
-  }, { rootMargin: '-35% 0px -60% 0px' });
-  document.querySelectorAll('.cat').forEach((s) => io.observe(s));
-}
-
+/* ---------- Arranque ---------- */
 renderStatic();
 syncType();
-render();
-watchCategories();
+renderMenu();
+renderCart();
+loadMenus();
 schedulePoll();
 pollOnce();
+setInterval(loadMenus, MENU_POLL_MS);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { loadMenus(); pollOnce(); } });

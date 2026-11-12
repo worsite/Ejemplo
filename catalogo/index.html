@@ -3,21 +3,22 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Burger Fest | Pide tu comida rápida</title>
-<meta name="description" content="Hamburguesas, perros, pizza y más. Arma tu pedido, envíalo al local y síguelo en vivo.">
-<meta name="theme-color" content="#DC2626">
+<title>Mamá Inés Restaurante | Menú del día</title>
+<meta name="description" content="Menú del día de Mamá Inés Restaurante. Escoge tu plato, dinos qué quieres y qué no, y pídelo a tu mesa o a domicilio.">
+<meta name="theme-color" content="#3F2024">
+<link rel="icon" href="assets/emblem.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700&family=Lilita+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Karla:wght@400;500;700;800&family=Playfair+Display:wght@800;900&family=Yellowtail&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-<a class="skip" href="#menu">Saltar al menú</a>
+<a class="skip" href="#menuBody">Saltar al menú</a>
 
 <header class="topbar">
-  <a class="brand" href="#top" aria-label="Burger Fest, inicio">
-    <svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="19" fill="#FACC15" stroke="#450A0A" stroke-width="3"/><path d="M8 22 C8 8 32 8 32 22 Z" fill="#DC2626" stroke="#450A0A" stroke-width="3" stroke-linejoin="round"/><rect x="8" y="25" width="24" height="6" rx="3" fill="#450A0A"/></svg>
-    <span id="brandName">Burger Fest</span>
+  <a class="brand" href="#top" aria-label="Mamá Inés Restaurante, inicio">
+    <img src="assets/emblem-light.png" alt="" width="34" height="45">
+    <span>Mamá Inés</span>
   </a>
   <button class="cart-btn" id="openCartTop" type="button" aria-label="Abrir mi pedido">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2l2-8H6.2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="19.5" r="1.6" fill="currentColor"/><circle cx="17" cy="19.5" r="1.6" fill="currentColor"/></svg>
@@ -26,44 +27,80 @@
 </header>
 
 <main id="top">
-  <section class="hero">
-    <div class="hero-copy">
-      <p class="kicker">Pide fácil · Llega caliente</p>
-      <h1>¿Hambre?<br><span>Pídelo ya.</span></h1>
-      <p class="lead">Elige tus favoritos, arma tu pedido y síguelo en vivo desde tu celular. Sin registros ni vueltas.</p>
-      <a class="btn btn-gold" href="#menu">Ver el menú
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
-      <ul class="chips" aria-label="Información del local">
-        <li id="chipHours"></li>
-        <li id="chipDelivery"></li>
-      </ul>
-    </div>
-    <div class="hero-art" id="heroArt"></div>
+  <article class="flyer" aria-labelledby="mdTitle">
+    <img class="flyer-logo" src="assets/logo.png" alt="Mamá Inés Restaurante" width="150" height="230">
+    <h1 class="md-title" id="mdTitle">Menú del día</h1>
+    <p class="md-day" id="mdDay" aria-live="polite"></p>
+    <nav class="daytabs" id="dayTabs" aria-label="Menú de cada día"></nav>
+    <p class="banner" id="dayBanner" role="status" hidden></p>
+    <div id="menuBody" class="menu-body" tabindex="-1"></div>
+  </article>
+
+  <section class="contact" aria-label="Pide tu domicilio">
+    <p class="contact-script">Pide tu domicilio</p>
+    <a class="contact-phone" id="contactPhone" href="#"></a>
+    <p class="contact-line" id="contactAddress"></p>
+    <p class="contact-line" id="contactInsta"></p>
   </section>
-
-  <nav class="cats" id="cats" aria-label="Categorías del menú"></nav>
-
-  <div id="menu" class="menu"></div>
 </main>
 
-<footer class="footer">
-  <p><strong id="footName">Burger Fest</strong> · Catálogo de ejemplo. Las imágenes son ilustraciones genéricas.</p>
-</footer>
-
 <div class="cartbar" id="cartbar" hidden>
-  <button class="btn btn-ink cartbar-btn" id="trackBtn" type="button" hidden>
+  <button class="btn btn-cream cartbar-btn" id="trackBtn" type="button" hidden>
     <span class="dot" aria-hidden="true"></span>
     <span id="trackBtnText">Pedido</span>
     <strong>Ver estado</strong>
   </button>
-  <button class="btn btn-gold cartbar-btn" id="openCartBar" type="button" hidden>
+  <button class="btn btn-wine cartbar-btn" id="openCartBar" type="button" hidden>
     <span class="cartbar-n" id="barCount">0</span>
     <span>Ver mi pedido</span>
     <strong id="barTotal">$0</strong>
   </button>
 </div>
 
+<!-- Personalizar un plato: ¿qué quieres y qué no? -->
+<dialog class="sheet" id="dishDialog" aria-labelledby="dishTitle">
+  <form id="dishForm" novalidate>
+    <div class="sheet-head">
+      <h2 id="dishTitle">Tu plato</h2>
+      <button class="icon-btn" id="closeDish" type="button" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+      </button>
+    </div>
+    <div class="sheet-body">
+      <div class="dish-hero">
+        <div class="dish-art big" id="dishArt" aria-hidden="true"></div>
+        <div>
+          <p class="dish-name" id="dishName"></p>
+          <p class="dish-price" id="dishPrice"></p>
+        </div>
+      </div>
+      <fieldset class="ask" id="partsField" hidden>
+        <legend>¿Qué lleva tu plato?</legend>
+        <p class="hint">Deja marcado lo que sí quieres. <b>Desmarca lo que NO quieres.</b></p>
+        <div id="partsList" class="checks"></div>
+      </fieldset>
+      <fieldset class="ask" id="choiceField" hidden>
+        <legend id="choiceLegend">Elige uno</legend>
+        <div id="choiceList" class="checks"></div>
+        <p class="err" id="choiceErr" role="alert"></p>
+      </fieldset>
+      <div class="field">
+        <label for="dishNote">¿Algo más? <span class="opt">(opcional)</span></label>
+        <input id="dishNote" type="text" maxlength="120" placeholder="Ej: sin ají, bien cocida…" autocomplete="off">
+      </div>
+      <div class="dish-foot">
+        <div class="step" role="group" aria-label="Cantidad">
+          <button type="button" id="dishMinus" aria-label="Quitar uno">−</button>
+          <output id="dishQty" aria-live="polite">1</output>
+          <button type="button" id="dishPlus" aria-label="Agregar uno más">+</button>
+        </div>
+        <button class="btn btn-wine grow" id="dishAdd" type="submit">Agregar</button>
+      </div>
+    </div>
+  </form>
+</dialog>
+
+<!-- Mi pedido / seguimiento -->
 <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
   <div class="sheet-head">
     <h2 id="sheetTitle">Mi pedido</h2>
@@ -75,8 +112,8 @@
   <div class="sheet-body">
     <div id="emptyState" class="empty" hidden>
       <p class="empty-title">Tu pedido está vacío</p>
-      <p>Agrega algo rico del menú y vuelve aquí.</p>
-      <button class="btn btn-red" id="backToMenu" type="button">Ver el menú</button>
+      <p>Escoge un plato del menú del día y vuelve aquí.</p>
+      <button class="btn btn-wine" id="backToMenu" type="button">Ver el menú</button>
     </div>
 
     <div id="cartContent" hidden>
@@ -118,11 +155,11 @@
         </div>
 
         <div class="field">
-          <label for="notes">Notas <span class="opt">(opcional)</span></label>
-          <textarea id="notes" name="notes" rows="2" maxlength="300" placeholder="Sin cebolla, extra salsa…"></textarea>
+          <label for="notes">Notas para todo el pedido <span class="opt">(opcional)</span></label>
+          <textarea id="notes" name="notes" rows="2" maxlength="300" placeholder="Ej: traer los cubiertos aparte…"></textarea>
         </div>
 
-        <button class="btn btn-wa" id="sendBtn" type="submit">Enviar pedido</button>
+        <button class="btn btn-wine wide" id="sendBtn" type="submit">Enviar pedido</button>
         <p class="hint" id="sendStatus" role="status"></p>
       </form>
     </div>
@@ -133,7 +170,7 @@
       <ol class="steps" id="trackSteps"></ol>
       <p class="track-where" id="trackWhere"></p>
       <p class="hint" id="trackNote"></p>
-      <button class="btn btn-red" id="newOrder" type="button" hidden>Hacer otro pedido</button>
+      <button class="btn btn-wine" id="newOrder" type="button" hidden>Hacer otro pedido</button>
       <button class="link-btn" id="backFromTrack" type="button">Volver al menú</button>
     </div>
   </div>
